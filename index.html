@@ -519,35 +519,32 @@
                 // ==========================================
         // AUTO-LOAD CSVs FROM GITHUB RELEASE ASSETS
         // ==========================================
-        const AUTO_CSV_URLS = [
-            'https://corsproxy.io/?' + encodeURIComponent('https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data1.csv'),
-            'https://corsproxy.io/?' + encodeURIComponent('https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data2.csv')
+        const CSV_SOURCES = [
+            {
+                name: 'data1.csv',
+                urls: [
+                    'https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data1.csv',
+                    'https://raw.githubusercontent.com/sauravgupta412-oss/BIPL_Data_Analysis/v1.0/data1.csv',
+                    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent('https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data1.csv')
+                ]
+            },
+            {
+                name: 'data2.csv.csv',
+                urls: [
+                    'https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data2.csv.csv',
+                    'https://raw.githubusercontent.com/sauravgupta412-oss/BIPL_Data_Analysis/v1.0/data2.csv.csv',
+                    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent('https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data2.csv.csv')
+                ]
+            }
         ];
 
-        async function autoLoadCsvs() {
-            const statusBox = document.getElementById('statusBox');
-            const statusMsg = document.getElementById('statusMessage');
-            const progressBarContainer = document.getElementById('progressBarContainer');
-            const progressBar = document.getElementById('progressBar');
-
-            statusBox.classList.remove('hidden', 'bg-rose-50', 'text-rose-800');
-            statusBox.classList.add('bg-sky-50', 'text-sky-800');
-            progressBarContainer.classList.remove('hidden');
-            progressBar.style.width = '5%';
-            statusMsg.innerHTML = `<svg class="animate-spin h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12h4z"></path></svg> Auto-loading CSV data from GitHub Release...`;
-
-            G.subscriptionsMap.clear();
-            G.allHeaders = [];
-            let filesProcessed = 0;
-
-            for (const url of AUTO_CSV_URLS) {
+        async function fetchAndParseCsv(source) {
+            let lastError = null;
+            for (const url of source.urls) {
                 try {
-                    const res = await fetch(url);
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    const text = await res.text();
-
-                    await new Promise((resolve, reject) => {
-                        Papa.parse(text, {
+                    const success = await new Promise((resolve, reject) => {
+                        Papa.parse(url, {
+                            download: true,
                             header: true,
                             skipEmptyLines: true,
                             dynamicTyping: false,
@@ -557,17 +554,53 @@
                                 }
                                 processRow(results.data);
                             },
-                            complete: function() {
-                                filesProcessed++;
-                                progressBar.style.width = `${Math.round((filesProcessed / AUTO_CSV_URLS.length) * 100)}%`;
-                                resolve();
+                            complete: function(results) {
+                                if (results.errors && results.errors.length > 0 && G.subscriptionsMap.size === 0) {
+                                    const hasFatal = results.errors.some(e => e.code === 'UndetectableDelimiter' || e.type === 'NetworkError');
+                                    if (hasFatal) {
+                                        reject(new Error(results.errors[0].message || 'Network fetch failed'));
+                                        return;
+                                    }
+                                }
+                                resolve(true);
                             },
-                            error: function(err) { reject(err); }
+                            error: function(err) {
+                                reject(err);
+                            }
                         });
                     });
+                    if (success && G.subscriptionsMap.size > 0) return true;
                 } catch (err) {
-                    console.warn('Auto-load fetch notice:', url, err);
-                    statusMsg.innerHTML = `<span class="text-amber-700 font-semibold">Auto-load notice: ${err.message}. You can manually upload CSV files using the top button.</span>`;
+                    console.warn(`Fallback triggered for ${source.name}:`, err);
+                    lastError = err;
+                }
+            }
+            throw lastError || new Error(`Could not load ${source.name}`);
+        }
+
+        async function autoLoadCsvs() {
+            const statusBox = document.getElementById('statusBox');
+            const statusMsg = document.getElementById('statusMessage');
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            const progressBar = document.getElementById('progressBar');
+
+            statusBox.classList.remove('hidden', 'bg-rose-50', 'text-rose-800', 'bg-emerald-50', 'text-emerald-800');
+            statusBox.classList.add('bg-sky-50', 'text-sky-800');
+            progressBarContainer.classList.remove('hidden');
+            progressBar.style.width = '10%';
+            statusMsg.innerHTML = `<svg class="animate-spin h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12h4z"></path></svg> Auto-loading CSV data from GitHub Release...`;
+
+            G.subscriptionsMap.clear();
+            G.allHeaders = [];
+            let loadedCount = 0;
+
+            for (const source of CSV_SOURCES) {
+                try {
+                    await fetchAndParseCsv(source);
+                    loadedCount++;
+                    progressBar.style.width = `${Math.round((loadedCount / CSV_SOURCES.length) * 100)}%`;
+                } catch (err) {
+                    console.error(`Error loading ${source.name}:`, err);
                 }
             }
 
@@ -586,6 +619,9 @@
                         statusBox.classList.add('hidden');
                     }, 4000);
                 }, 100);
+            } else {
+                statusMsg.innerHTML = `<span class="text-amber-700 font-semibold">Auto-load notice: Could not download release files automatically due to browser CORS policy. Please click "Upload 2 CSV Files" above.</span>`;
+                progressBarContainer.classList.add('hidden');
             }
         }
 
