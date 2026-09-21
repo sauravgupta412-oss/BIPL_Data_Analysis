@@ -516,12 +516,12 @@
             if (e.key === 'Enter') performGlobalSearch();
         });
 
-        // ==========================================
+                // ==========================================
         // AUTO-LOAD CSVs FROM GITHUB RELEASE ASSETS
         // ==========================================
         const AUTO_CSV_URLS = [
-            'https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data1.csv',
-            'https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data2.csv.csv'
+            'https://corsproxy.io/?' + encodeURIComponent('https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data1.csv'),
+            'https://corsproxy.io/?' + encodeURIComponent('https://github.com/sauravgupta412-oss/BIPL_Data_Analysis/releases/download/v1.0/data2.csv.csv')
         ];
 
         async function autoLoadCsvs() {
@@ -543,7 +543,7 @@
             for (const url of AUTO_CSV_URLS) {
                 try {
                     const res = await fetch(url);
-                    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url.split('/').pop()}`);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     const text = await res.text();
 
                     await new Promise((resolve, reject) => {
