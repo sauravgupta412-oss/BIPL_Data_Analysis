@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription & RDP Analytics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #0f172a;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .card-light {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            border-radius: 0.75rem;
+        }
+        .metric-card { transition: all 0.2s ease-in-out; }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-backdrop.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 95vw;
+            max-width: 1400px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .badge-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .sort-header {
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        .sort-header:hover {
+            background-color: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <!-- Header & File Upload Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                        <svg class="w-7 h-7 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        Subscription & RDP Analytics
+                    </h1>
+                    <p class="text-sm text-slate-500 mt-0.5">Active Expiry Cutoff: <span class="font-semibold text-slate-700">01/09/2026</span></p>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <label class="cursor-pointer bg-sky-600 hover:bg-sky-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span>Upload 2 CSV Files</span>
+                        <input type="file" id="csvFileInput" multiple accept=".csv" class="hidden">
+                    </label>
+                    <button id="resetBtn" onclick="resetFilters()" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3.5 py-2.5 rounded-lg transition text-sm flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Reset Filter
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-3 relative">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input 
+                        type="text" 
+                        id="globalSearchInput" 
+                        placeholder="🔍 Global Search: Type Subscription No, GSTIN, CompGUID, Partner, Cluster, Category or any raw data field..." 
+                        class="w-full pl-10 pr-24 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-slate-50"
+                    >
+                    <button id="searchSubmitBtn" onclick="performGlobalSearch()" class="absolute right-1.5 top-1/2 -translate-y-1/2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-1.5 rounded-md">
+                        Search
+                    </button>
+                </div>
+            </div>
+            
+            <div id="statusBox" class="hidden mt-3 p-3 rounded-lg text-sm flex items-center justify-between">
+                <div class="flex items-center gap-2" id="statusMessage"></div>
+                <div id="progressBarContainer" class="w-48 bg-slate-200 rounded-full h-2 hidden">
+                    <div id="progressBar" class="bg-sky-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
+
+        <!-- 1. SUMMARY OVERVIEW SECTION -->
+        <section>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 bg-sky-600 rounded-full"></span>
+                    Summary Overview
+                </h2>
+                <span id="activeFilterBadge" class="hidden bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold px-2.5 py-1 rounded-full"></span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                <div class="card-light p-4 metric-card cursor-pointer" onclick="applyFilter('ALL')">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Unique Subscriptions</p>
+                    <p class="text-2xl font-black text-slate-900 mt-1" id="m-total-sub">0</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Deduplicated IDs</p>
+                </div>
+                <div class="card-light p-4 metric-card cursor-pointer border-l-4 border-l-emerald-500" onclick="applyFilter('ACTIVE')">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Active Licenses</p>
+                    <p class="text-2xl font-black text-emerald-600 mt-1" id="m-active-sub">0</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Expiry &ge; 01/09/2026</p>
+                </div>
+                <div class="card-light p-4 metric-card cursor-pointer border-l-4 border-l-rose-500" onclick="applyFilter('EXPIRED')">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Expired Licenses</p>
+                    <p class="text-2xl font-black text-rose-600 mt-1" id="m-expired-sub">0</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Expiry &lt; 01/09/2026</p>
+                </div>
+                <div class="card-light p-4 metric-card cursor-pointer" onclick="applyFilter('COMPGUID')">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Unique COMPGUID</p>
+                    <p class="text-2xl font-black text-indigo-600 mt-1" id="m-unique-guid">0</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Per Sub Pair</p>
+                </div>
+                <div class="card-light p-4 metric-card cursor-pointer" onclick="applyFilter('GSTIN')">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Unique GSTIN</p>
+                    <p class="text-2xl font-black text-purple-600 mt-1" id="m-unique-gstin">0</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Per Sub Pair</p>
+                </div>
+                <div class="card-light p-4 metric-card cursor-pointer border-l-4 border-l-amber-500" onclick="applyFilter('RDP_LICENSES')">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">RDP Licenses</p>
+                    <p class="text-2xl font-black text-amber-600 mt-1" id="m-rdp-licenses">0</p>
+                    <p class="text-[11px] text-slate-400 mt-1">RDP Count &gt; 0</p>
+                </div>
+                <div class="card-light p-4 metric-card cursor-pointer border-l-4 border-l-cyan-500" onclick="applyFilter('RDP_USERS')">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">RDP User Count</p>
+                    <p class="text-2xl font-black text-cyan-600 mt-1" id="m-rdp-users">0</p>
+                    <p class="text-[11px] text-slate-400 mt-1">Sum of RDP Count</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. CUSTOMER CATEGORY BREAKDOWN SECTION -->
+        <section>
+            <h2 class="text-lg font-bold text-slate-800 tracking-tight mb-3 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 bg-indigo-600 rounded-full"></span>
+                Customer Category Breakdown & Cross-Category Correlation
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4" id="categoryCardsContainer"></div>
+        </section>
+
+        <!-- 3. VISUAL ANALYTICS SECTION -->
+        <section class="space-y-4">
+            <!-- Standard Analytics Charts -->
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <h2 class="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 bg-emerald-600 rounded-full"></span>
+                    Visual Analytics (Combo Charts with Data Labels)
+                </h2>
+                <div class="flex items-center gap-4 text-xs font-medium text-slate-600">
+                    <label class="flex items-center gap-1.5 cursor-pointer mr-2 border border-slate-300 px-2 py-1 rounded bg-white hover:bg-slate-50 transition shadow-sm">
+                        <input type="checkbox" id="hideNcrMain" onchange="computeAndRenderAll()" class="rounded text-sky-600 focus:ring-sky-500 w-3 h-3">
+                        <span>Hide NCR</span>
+                    </label>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-sky-500 rounded-sm inline-block"></span> Total Subscriptions (Bar)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-emerald-500 inline-block"></span> RDP Licenses (Left Axis)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-1 border-b-2 border-dashed border-amber-500 inline-block"></span> RDP User Ratio % (Right Axis)</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="card-light p-4 lg:col-span-1">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center justify-between">
+                        <span>Top 10 Customer Cluster Analysis</span>
+                        <span class="text-[10px] font-normal text-slate-400">Click bars to filter</span>
+                    </h3>
+                    <div class="relative h-64 w-full"><canvas id="chartCustomerCluster"></canvas></div>
+                </div>
+                <div class="card-light p-4 lg:col-span-1">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center justify-between">
+                        <span>Top 10 Partner Cluster Analysis</span>
+                        <span class="text-[10px] font-normal text-slate-400">Click bars to filter</span>
+                    </h3>
+                    <div class="relative h-64 w-full"><canvas id="chartPartnerCluster"></canvas></div>
+                </div>
+            </div>
+
+            <!-- New Migration Analytics Charts -->
+            <div class="flex items-center justify-between flex-wrap gap-3 mt-6">
+                <h2 class="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 bg-rose-600 rounded-full"></span>
+                    Migration Analytics (Expired Customer Behaviour)
+                </h2>
+                <div class="flex items-center gap-4 text-xs font-medium text-slate-600">
+                    <label class="flex items-center gap-1.5 cursor-pointer mr-2 border border-slate-300 px-2 py-1 rounded bg-white hover:bg-slate-50 transition shadow-sm">
+                        <input type="checkbox" id="hideNcrMig" onchange="triggerMigrationUpdate()" class="rounded text-rose-600 focus:ring-rose-500 w-3 h-3">
+                        <span>Hide NCR</span>
+                    </label>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-rose-500 rounded-sm inline-block"></span> Expired Licenses (Bar)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-1 bg-emerald-500 inline-block"></span> New Activation Switch % (Line)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-1 border-b-2 border-dashed border-amber-500 inline-block"></span> RDP Switch % (Line)</span>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div class="card-light p-4 lg:col-span-1 border-t-2 border-t-rose-500">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center justify-between">
+                        <span>Top 10 Customer Clusters (Migration)</span>
+                        <span class="text-[10px] font-normal text-slate-400">Reflects Table Filters</span>
+                    </h3>
+                    <div class="relative h-64 w-full"><canvas id="chartMigCustomerCluster"></canvas></div>
+                </div>
+                <div class="card-light p-4 lg:col-span-1 border-t-2 border-t-rose-500">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center justify-between">
+                        <span>Top 10 Partner Clusters (Migration)</span>
+                        <span class="text-[10px] font-normal text-slate-400">Reflects Table Filters</span>
+                    </h3>
+                    <div class="relative h-64 w-full"><canvas id="chartMigPartnerCluster"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Top 15 Partners Full Width -->
+            <div class="grid grid-cols-1 gap-4 mt-6">
+                <div class="card-light p-4">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center justify-between">
+                        <span>Top 15 Partners Analysis</span>
+                        <span class="text-[10px] font-normal text-slate-400">Click bars to filter</span>
+                    </h3>
+                    <div class="relative h-64 w-full"><canvas id="chartPartners"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. CUSTOMER MIGRATION TRACKER TABLE (INFINITE SCROLL) -->
+        <section>
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between mb-3 gap-3">
+                <h2 class="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2 shrink-0">
+                    <span class="w-2.5 h-2.5 bg-rose-600 rounded-full"></span>
+                    Customer Migration Tracker Table
+                </h2>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <select id="migrationCategoryFilter" onchange="triggerMigrationUpdate()" class="text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white max-w-[140px]">
+                        <option value="ALL">All Categories</option>
+                    </select>
+                    <select id="migrationClusterFilter" onchange="triggerMigrationUpdate()" class="text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white max-w-[140px]">
+                        <option value="ALL">All Clusters</option>
+                    </select>
+                    <select id="migrationFilterType" onchange="triggerMigrationUpdate()" class="text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white">
+                        <option value="ALL">All Migrations</option>
+                        <option value="REGULAR">Renewal / License Migration</option>
+                        <option value="RDP">RDP Migration</option>
+                        <option value="NOT_MIGRATED">Not Migrated (Churned)</option>
+                    </select>
+                    <input 
+                        type="text" 
+                        id="migrationSearchInput" 
+                        placeholder="Search table..." 
+                        oninput="triggerMigrationUpdate()"
+                        class="text-xs border border-slate-300 rounded-md px-2 py-1.5 w-40 sm:w-52 bg-white"
+                    >
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                <div class="card-light p-3">
+                    <p class="text-[10px] font-medium text-slate-500 uppercase">Total Expired Customers</p>
+                    <p class="text-xl font-black text-rose-600 mt-1" id="mig-total-expired">0</p>
+                </div>
+                <div class="card-light p-3 border-l-4 border-l-emerald-500">
+                    <p class="text-[10px] font-medium text-slate-500 uppercase">Migrated to New Regular License</p>
+                    <p class="text-xl font-black text-emerald-600 mt-1" id="mig-regular">0</p>
+                </div>
+                <div class="card-light p-3 border-l-4 border-l-amber-500">
+                    <p class="text-[10px] font-medium text-slate-500 uppercase">Migrated to RDP License</p>
+                    <p class="text-xl font-black text-amber-600 mt-1" id="mig-rdp">0</p>
+                </div>
+                <div class="card-light p-3 border-l-4 border-l-slate-500">
+                    <p class="text-[10px] font-medium text-slate-500 uppercase">Not Migrated (Churned)</p>
+                    <p class="text-xl font-black text-slate-700 mt-1" id="mig-churned">0</p>
+                </div>
+            </div>
+
+            <div class="card-light overflow-hidden">
+                <!-- SCROLL CONTAINER FOR INFINITE SCROLL -->
+                <div class="overflow-auto max-h-[500px]" id="migrationScrollContainer" onscroll="handleMigrationScroll()">
+                    <table class="w-full text-xs">
+                        <thead class="bg-slate-100 sticky top-0 z-10">
+                            <tr>
+                                <th class="text-left px-3 py-2 font-semibold text-slate-700 sort-header" onclick="sortMigrationTable('subNo')">
+                                    Expired Sub No. <span id="sort-icon-subNo" class="text-slate-400"></span>
+                                </th>
+                                <th class="text-left px-3 py-2 font-semibold text-slate-700 sort-header" onclick="sortMigrationTable('category')">
+                                    Category <span id="sort-icon-category" class="text-slate-400"></span>
+                                </th>
+                                <th class="text-left px-3 py-2 font-semibold text-slate-700 sort-header" onclick="sortMigrationTable('guids')">
+                                    CompGUID / GSTIN <span id="sort-icon-guids" class="text-slate-400"></span>
+                                </th>
+                                <th class="text-left px-3 py-2 font-semibold text-slate-700 sort-header" onclick="sortMigrationTable('expiry')">
+                                    Expiry Date <span id="sort-icon-expiry" class="text-slate-400"></span>
+                                </th>
+                                <th class="text-center px-3 py-2 font-semibold text-slate-700 sort-header" onclick="sortMigrationTable('status')">
+                                    Migration Status <span id="sort-icon-status" class="text-slate-400"></span>
+                                </th>
+                                <th class="text-left px-3 py-2 font-semibold text-slate-700 sort-header" onclick="sortMigrationTable('migratedTo')">
+                                    Migrated To (New Sub No.) <span id="sort-icon-migratedTo" class="text-slate-400"></span>
+                                </th>
+                                <th class="text-left px-3 py-2 font-semibold text-slate-700 sort-header" onclick="sortMigrationTable('matchKey')">
+                                    Match Key <span id="sort-icon-matchKey" class="text-slate-400"></span>
+                                </th>
+                                <th class="text-left px-3 py-2 font-semibold text-slate-700 sort-header" onclick="sortMigrationTable('migDate')">
+                                    New Activation / RDP Switch <span id="sort-icon-migDate" class="text-slate-400"></span>
+                                </th>
+                                <th class="text-center px-3 py-2 font-semibold text-slate-700">View</th>
+                            </tr>
+                        </thead>
+                        <tbody id="migrationTableBody">
+                            <tr><td colspan="9" class="text-center py-6 text-slate-400">Upload CSV files to see migration data.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-2 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 bg-slate-50">
+                    <span id="migrationPageInfo">Showing 0 records</span>
+                    <span class="italic">Scroll to load more</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- RAW DATA POPUP MODAL (INFINITE SCROLL) -->
+    <div class="modal-backdrop" id="rawDataModal" onclick="closeModalOnBackdrop(event)">
+        <div class="modal-content">
+            <div class="p-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900" id="modalTitle">Raw Data View</h3>
+                        <p class="text-xs text-slate-500 mt-0.5" id="modalSubtitle">Showing 0 records</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="modalSearchInput" oninput="triggerModalUpdate()" placeholder="Search within results..." class="text-xs border border-slate-300 rounded-md px-3 py-1.5 w-56 bg-white">
+                        <button onclick="exportModalCSV()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-md flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Export CSV
+                        </button>
+                        <button onclick="closeModal()" class="text-slate-500 hover:text-slate-900 p-1.5 rounded-md hover:bg-slate-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- Filters & Summary Panel for Raw Data Modal -->
+                <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-2">
+                        <select id="modalCategoryFilter" onchange="triggerModalUpdate()" class="text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white font-medium text-slate-700 outline-none focus:border-sky-500">
+                            <option value="ALL">All Categories</option>
+                        </select>
+                        <select id="modalExpiryFilter" onchange="triggerModalUpdate()" class="text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white font-medium text-slate-700 outline-none focus:border-sky-500">
+                            <option value="ALL">All Expiry Months</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-5 text-xs" id="modalSummaryStats">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+            <!-- SCROLL CONTAINER FOR MODAL -->
+            <div class="flex-1 overflow-auto p-2" id="modalScrollContainer" onscroll="handleModalScroll()">
+                <table class="w-full text-xs border-collapse">
+                    <thead class="bg-slate-100 sticky top-0" id="modalThead"></thead>
+                    <tbody id="modalTbody"></tbody>
+                </table>
+            </div>
+            <div class="p-2 border-t border-slate-200 text-xs text-slate-500 text-center bg-slate-50 italic">
+                Scroll to load more records automatically.
+            </div>
+        </div>
+    </div>
+
+    <!-- LIST POPUP MODAL (For multiple CompGUID/GSTIN cross-reference) -->
+    <div class="modal-backdrop" id="listModal" onclick="closeListModalOnBackdrop(event)" style="z-index: 110;">
+        <div class="bg-white rounded-lg w-full max-w-4xl flex flex-col overflow-hidden shadow-xl" style="max-height: 80vh;">
+            <div class="p-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 text-sm" id="listModalTitle">List</h3>
+                <button onclick="closeListModal()" class="text-slate-500 hover:text-slate-900 p-1 rounded-md hover:bg-slate-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-0 overflow-y-auto flex-1">
+                <table class="w-full text-xs border-collapse">
+                    <thead class="bg-slate-100 sticky top-0" id="listModalThead"></thead>
+                    <tbody id="listModalContent"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Application Logic -->
+    <script>
+        const G = {
+            subscriptionsMap: new Map(),
+            allHeaders: [],
+            activeFilter: null,
+            filterValue: null,
+            categories: ['CA', 'Accountant', 'GSTP', 'Regular', 'RDP'],
+            chartInstances: {},
+            migrationData: [],
+            
+            // Reverse lookup maps for (+N) cross-reference
+            reverseCompguidMap: new Map(),
+            reverseGstinMap: new Map(),
+
+            // Migration Scroll State
+            filteredMigrationData: [],
+            migrationVisibleCount: 0,
+            migrationChunkSize: 25,
+            migrationSortCol: null,
+            migrationSortDir: 1, 
+
+            // Modal Scroll State
+            modalData: [],
+            filteredModalData: [],
+            modalVisibleCount: 0,
+            modalChunkSize: 50,
+            modalSortCol: null,
+            modalSortDir: 1,
+
+            // List Modal Sorting State
+            listModalRows: [],
+            listSortCol: null,
+            listSortDir: 1,
+            listModalIdentifierLabel: ''
+        };
+
+        const CUTOFF_DATE = new Date('2026-09-01T00:00:00');
+
+        Chart.register(ChartDataLabels);
+        Chart.defaults.color = '#475569';
+        Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+
+        document.getElementById('csvFileInput').addEventListener('change', handleFileUpload);
+        document.getElementById('globalSearchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performGlobalSearch();
+        });
+
+        // Escape key listener: close listModal first, then rawDataModal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                const listModal = document.getElementById('listModal');
+                const rawDataModal = document.getElementById('rawDataModal');
+                if (listModal.classList.contains('active')) {
+                    closeListModal();
+                } else if (rawDataModal.classList.contains('active')) {
+                    closeModal();
+                }
+            }
+        });
+
+        function isValidGuid(g) {
+            if (!g) return false;
+            const s = g.toString().trim().toLowerCase();
+            return s !== '' && s !== 'null' && s !== '0' && s !== '-' && s !== 'undefined' && s !== 'none';
+        }
+
+        function isValidGstin(g) {
+            if (!g) return false;
+            const s = g.toString().trim().toLowerCase();
+            return s !== '' && s !== 'null' && s !== '0' && s !== '-' && s !== 'undefined' && s !== 'none';
+        }
+
+        function parseDate(str) {
+            if (!str) return null;
+            const raw = str.toString().trim();
+            if (!raw) return null;
+
+            // Handle "DD/MM/YYYY HH:MM:SS" or "DD-MM-YYYY HH:MM:SS"
+            const tsMatch = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+\d{1,2}:\d{2}:\d{2}$/);
+            if (tsMatch) {
+                const d = new Date(parseInt(tsMatch[3]), parseInt(tsMatch[2]) - 1, parseInt(tsMatch[1]));
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            // Handle "DD/MM/YYYY" or "DD-MM-YYYY"
+            const dmyMatch = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (dmyMatch) {
+                const d = new Date(parseInt(dmyMatch[3]), parseInt(dmyMatch[2]) - 1, parseInt(dmyMatch[1]));
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            // Handle "YYYY-MM-DD" (ISO-like) — parse locally to avoid UTC offset
+            const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (isoMatch) {
+                const d = new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            // Fallback
+            let d = new Date(raw);
+            if (!isNaN(d.getTime())) return d;
+            return null;
+        }
+
+        function handleFileUpload(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            const statusBox = document.getElementById('statusBox');
+            const statusMsg = document.getElementById('statusMessage');
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            const progressBar = document.getElementById('progressBar');
+
+            statusBox.classList.remove('hidden', 'bg-rose-50', 'text-rose-800');
+            statusBox.classList.add('bg-sky-50', 'text-sky-800');
+            progressBarContainer.classList.remove('hidden');
+            progressBar.style.width = '5%';
+            statusMsg.innerHTML = `<svg class="animate-spin h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12h4z"></path></svg> Ingesting ${files.length} CSV File(s)...`;
+
+            let filesProcessed = 0;
+            G.subscriptionsMap.clear();
+            G.allHeaders = [];
+
+            Array.from(files).forEach((file) => {
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: false,
+                    worker: true,
+                    step: function(results) {
+                        if (G.allHeaders.length === 0 && results.meta && results.meta.fields) {
+                            G.allHeaders = results.meta.fields;
+                        }
+                        processRow(results.data);
+                    },
+                    complete: function() {
+                        filesProcessed++;
+                        progressBar.style.width = `${Math.round((filesProcessed / files.length) * 100)}%`;
+                        if (filesProcessed === files.length) {
+                            statusMsg.innerHTML = `<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Deduplicated ${G.subscriptionsMap.size.toLocaleString()} unique subscriptions. Building migration index...`;
+                            statusBox.classList.remove('bg-sky-50', 'text-sky-800');
+                            statusBox.classList.add('bg-emerald-50', 'text-emerald-800');
+                            
+                            setTimeout(() => {
+                                buildReverseLookupMaps();
+                                buildMigrationIndex();
+                                computeAndRenderAll();
+                                statusMsg.innerHTML = `<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Ingestion complete — ${G.subscriptionsMap.size.toLocaleString()} unique subscriptions.`;
+                                
+                                // Auto-hide the banner after 4 seconds
+                                setTimeout(() => {
+                                    statusBox.classList.add('hidden');
+                                }, 4000);
+                                
+                            }, 100);
+                        }
+                    },
+                    error: function(err) {
+                        statusMsg.innerHTML = `<span class="text-rose-600">Error: ${err.message}</span>`;
+                    }
+                });
+            });
+        }
+
+        function processRow(row) {
+            const subNo = (row['subscription_number'] || row['Subscription Number'] || row['Subscription_Number'] || '').toString().trim();
+            if (!subNo) return;
+
+            const rdpRaw = parseFloat(row['RDP Count'] || row['rdp_count'] || row['RDP_Count'] || 0);
+            const rdpCount = isNaN(rdpRaw) || rdpRaw <= 0 ? 0 : rdpRaw;
+            const hasRdpLicense = rdpCount > 0 ? 1 : 0;
+
+            const expiryStr = (row['BLS Expiry'] || row['bls_expiry'] || row['BLS_Expiry'] || '').toString().trim();
+            const activationStr = (row['Activation Date'] || row['activation_date'] || row['Activation_Date'] || '').toString().trim();
+            const rdpSwitchStr = (row['RDP_Switch_Date'] || row['RDP Switch Date'] || row['rdp_switch_date'] || '').toString().trim();
+            const lastActiveStr = (row['Last_Active'] || row['last_active'] || row['Last Active'] || '').toString().trim();
+
+            const expiryDate = parseDate(expiryStr);
+            const activationDate = parseDate(activationStr);
+            const rdpSwitchDate = parseDate(rdpSwitchStr);
+            const lastActiveDate = parseDate(lastActiveStr);
+            const isActive = expiryDate ? expiryDate >= CUTOFF_DATE : false;
+
+            const category = normalizeCategory(row['Customer Category'] || row['customer_category'] || row['Customer_Category'] || 'Regular');
+            const compGuidRaw = (row['CompGUID'] || row['compguid'] || row['COMPGUID'] || '').toString().trim();
+            const gstinRaw = (row['GSTIN'] || row['gstin'] || '').toString().trim();
+            const custCluster = (row['Customer Cluster'] || row['customer_cluster'] || row['Customer_Cluster'] || 'Unknown').toString().trim();
+            const partnerCluster = (row['Partner Cluster'] || row['partner_cluster'] || row['Partner_Cluster'] || 'Unknown').toString().trim();
+            const ownerPartner = (row['Owner_Partner'] || row['owner_partner'] || row['Owner Partner'] || 'Direct/Unknown').toString().trim();
+
+            if (!G.subscriptionsMap.has(subNo)) {
+                const compGuidsSet = new Set();
+                if (isValidGuid(compGuidRaw)) compGuidsSet.add(compGuidRaw);
+
+                const gstinsSet = new Set();
+                if (isValidGstin(gstinRaw)) gstinsSet.add(gstinRaw);
+
+                G.subscriptionsMap.set(subNo, {
+                    subNo,
+                    compGuids: compGuidsSet,
+                    gstins: gstinsSet,
+                    primaryCompGuid: isValidGuid(compGuidRaw) ? compGuidRaw : '',
+                    primaryGstin: isValidGstin(gstinRaw) ? gstinRaw : '',
+                    category,
+                    custCluster,
+                    partnerCluster,
+                    ownerPartner,
+                    isActive,
+                    expiryDate,
+                    activationDate,
+                    rdpSwitchDate,
+                    lastActiveDate,
+                    rdpCount,
+                    hasRdpLicense,
+                    raw: row
+                });
+            } else {
+                const existing = G.subscriptionsMap.get(subNo);
+                if (isValidGuid(compGuidRaw)) {
+                    existing.compGuids.add(compGuidRaw);
+                    if (!existing.primaryCompGuid) existing.primaryCompGuid = compGuidRaw;
+                }
+                if (isValidGstin(gstinRaw)) {
+                    existing.gstins.add(gstinRaw);
+                    if (!existing.primaryGstin) existing.primaryGstin = gstinRaw;
+                }
+                if (rdpCount > existing.rdpCount) {
+                    existing.rdpCount = rdpCount;
+                    existing.hasRdpLicense = hasRdpLicense;
+                }
+                if (isActive) existing.isActive = true;
+                if (!existing.activationDate && activationDate) existing.activationDate = activationDate;
+                if (!existing.rdpSwitchDate && rdpSwitchDate) existing.rdpSwitchDate = rdpSwitchDate;
+                if (lastActiveDate && (!existing.lastActiveDate || lastActiveDate > existing.lastActiveDate)) {
+                    existing.lastActiveDate = lastActiveDate;
+                }
+            }
+        }
+
+        function normalizeCategory(catStr) {
+            const upper = catStr.toString().toUpperCase();
+            if (upper.includes('CA') || upper.includes('CHARTERED')) return 'CA';
+            if (upper.includes('ACCOUNTANT')) return 'Accountant';
+            if (upper.includes('GSTP') || upper.includes('GST')) return 'GSTP';
+            return 'Regular';
+        }
+
+        // Build reverse lookup maps for (+N) cross-reference modal
+        function buildReverseLookupMaps() {
+            G.reverseCompguidMap.clear();
+            G.reverseGstinMap.clear();
+
+            G.subscriptionsMap.forEach((item, subNo) => {
+                item.compGuids.forEach(g => {
+                    if (!G.reverseCompguidMap.has(g)) G.reverseCompguidMap.set(g, new Set());
+                    G.reverseCompguidMap.get(g).add(subNo);
+                });
+                item.gstins.forEach(g => {
+                    if (!G.reverseGstinMap.has(g)) G.reverseGstinMap.set(g, new Set());
+                    G.reverseGstinMap.get(g).add(subNo);
+                });
+            });
+        }
+
+        // Migration Index Calculation
+        function buildMigrationIndex() {
+            const items = Array.from(G.subscriptionsMap.values());
+            G.migrationData = [];
+
+            const guidIndex = new Map();
+            const gstinIndex = new Map();
+
+            items.forEach(item => {
+                item.compGuids.forEach(g => {
+                    if (!guidIndex.has(g)) guidIndex.set(g, []);
+                    guidIndex.get(g).push(item);
+                });
+                item.gstins.forEach(g => {
+                    if (!gstinIndex.has(g)) gstinIndex.set(g, []);
+                    gstinIndex.get(g).push(item);
+                });
+            });
+
+            const uniqueCats = new Set();
+            const uniqueClusters = new Set();
+
+            items.forEach(expired => {
+                if (expired.isActive || !expired.expiryDate) return;
+
+                if (expired.category) uniqueCats.add(expired.category);
+                if (expired.custCluster) uniqueClusters.add(expired.custCluster);
+
+                let migration = {
+                    expired: expired,
+                    status: 'NOT_MIGRATED',
+                    migratedTo: null,
+                    matchKey: null,
+                    migrationDate: null,
+                    migrationType: null
+                };
+
+                const candidates = new Set();
+                expired.compGuids.forEach(g => {
+                    if (guidIndex.has(g)) guidIndex.get(g).forEach(c => { if (c.subNo !== expired.subNo) candidates.add(c); });
+                });
+                expired.gstins.forEach(g => {
+                    if (gstinIndex.has(g)) gstinIndex.get(g).forEach(c => { if (c.subNo !== expired.subNo) candidates.add(c); });
+                });
+
+                let bestRdpMatch = null;
+                let bestRegularMatch = null;
+
+                candidates.forEach(candidate => {
+                    if (candidate.hasRdpLicense && candidate.rdpSwitchDate && candidate.rdpSwitchDate >= expired.expiryDate) {
+                        if (!bestRdpMatch || candidate.rdpSwitchDate < bestRdpMatch.rdpSwitchDate) {
+                            bestRdpMatch = candidate;
+                        }
+                    }
+                    if (!candidate.hasRdpLicense && candidate.activationDate && candidate.activationDate >= expired.expiryDate) {
+                        if (!bestRegularMatch || candidate.activationDate < bestRegularMatch.activationDate) {
+                            bestRegularMatch = candidate;
+                        }
+                    }
+                });
+
+                if (bestRdpMatch) {
+                    migration.status = 'RDP';
+                    migration.migratedTo = bestRdpMatch;
+                    migration.migrationDate = bestRdpMatch.rdpSwitchDate;
+                    migration.migrationType = 'RDP Switch';
+                } else if (bestRegularMatch) {
+                    migration.status = 'REGULAR';
+                    migration.migratedTo = bestRegularMatch;
+                    migration.migrationDate = bestRegularMatch.activationDate;
+                    migration.migrationType = 'New License Activation';
+                }
+
+                if (migration.migratedTo) {
+                    const hasSharedGuid = [...expired.compGuids].some(g => migration.migratedTo.compGuids.has(g));
+                    const hasSharedGstin = [...expired.gstins].some(g => migration.migratedTo.gstins.has(g));
+                    if (hasSharedGuid && hasSharedGstin) migration.matchKey = 'GUID + GSTIN';
+                    else if (hasSharedGuid) migration.matchKey = 'CompGUID';
+                    else if (hasSharedGstin) migration.matchKey = 'GSTIN';
+                }
+
+                G.migrationData.push(migration);
+            });
+
+            // Populate Dropdowns
+            document.getElementById('migrationCategoryFilter').innerHTML = '<option value="ALL">All Categories</option>' + 
+                Array.from(uniqueCats).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('migrationClusterFilter').innerHTML = '<option value="ALL">All Clusters</option>' + 
+                Array.from(uniqueClusters).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
+        function computeAndRenderAll() {
+            const items = Array.from(G.subscriptionsMap.values());
+            const filteredItems = filterDataset(items);
+            renderSummaryOverview(filteredItems);
+            renderCategoryBreakdown(filteredItems);
+            renderCharts(filteredItems);
+            triggerMigrationUpdate(); 
+        }
+
+        function filterDataset(items) {
+            if (!G.activeFilter) return items;
+            return items.filter(item => {
+                if (G.activeFilter === 'ACTIVE') return item.isActive;
+                if (G.activeFilter === 'EXPIRED') return !item.isActive;
+                if (G.activeFilter === 'COMPGUID') return item.compGuids.size > 0;
+                if (G.activeFilter === 'GSTIN') return item.gstins.size > 0;
+                if (G.activeFilter === 'RDP_LICENSES') return item.hasRdpLicense === 1;
+                if (G.activeFilter === 'RDP_USERS') return item.rdpCount > 0;
+                if (G.activeFilter === 'CATEGORY') {
+                    if (G.filterValue === 'RDP') return item.hasRdpLicense === 1;
+                    return item.category === G.filterValue;
+                }
+                if (G.activeFilter === 'CUSTOMER_CLUSTER') return item.custCluster === G.filterValue;
+                if (G.activeFilter === 'PARTNER_CLUSTER') return item.partnerCluster === G.filterValue;
+                if (G.activeFilter === 'OWNER_PARTNER') return item.ownerPartner === G.filterValue;
+                if (G.activeFilter === 'GLOBAL_SEARCH') {
+                    const term = G.filterValue.toLowerCase();
+                    return Object.values(item.raw).some(v => v && v.toString().toLowerCase().includes(term));
+                }
+                return true;
+            });
+        }
+
+        // 1. Summary Overview
+        function renderSummaryOverview(items) {
+            let activeSub = 0, expiredSub = 0, rdpLicenses = 0, rdpUsers = 0;
+            const guids = new Set(), gstins = new Set();
+            items.forEach(item => {
+                if (item.isActive) activeSub++; else expiredSub++;
+                item.compGuids.forEach(g => guids.add(g));
+                item.gstins.forEach(g => gstins.add(g));
+                if (item.hasRdpLicense) rdpLicenses++;
+                rdpUsers += item.rdpCount;
+            });
+            document.getElementById('m-total-sub').innerText = items.length.toLocaleString();
+            document.getElementById('m-active-sub').innerText = activeSub.toLocaleString();
+            document.getElementById('m-expired-sub').innerText = expiredSub.toLocaleString();
+            document.getElementById('m-unique-guid').innerText = guids.size.toLocaleString();
+            document.getElementById('m-unique-gstin').innerText = gstins.size.toLocaleString();
+            document.getElementById('m-rdp-licenses').innerText = rdpLicenses.toLocaleString();
+            document.getElementById('m-rdp-users').innerText = rdpUsers.toLocaleString();
+
+            const badge = document.getElementById('activeFilterBadge');
+            const resetBtn = document.getElementById('resetBtn');
+            if (G.activeFilter) {
+                badge.innerText = `Filter: ${G.activeFilter}${G.filterValue ? ' (' + G.filterValue + ')' : ''}`;
+                badge.classList.remove('hidden');
+                resetBtn.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+                resetBtn.classList.add('hidden');
+            }
+        }
+
+        // 2. Category Breakdown Cards
+        function renderCategoryBreakdown(filteredItems) {
+            const container = document.getElementById('categoryCardsContainer');
+            container.innerHTML = '';
+            const totalFiltered = filteredItems.length || 1;
+            const catStats = {
+                'CA': { total: 0, active: 0, expired: 0, guids: new Set(), gstins: new Set() },
+                'Accountant': { total: 0, active: 0, expired: 0, guids: new Set(), gstins: new Set() },
+                'GSTP': { total: 0, active: 0, expired: 0, guids: new Set(), gstins: new Set() },
+                'Regular': { total: 0, active: 0, expired: 0, guids: new Set(), gstins: new Set() },
+                'RDP': { total: 0, active: 0, expired: 0, guids: new Set(), gstins: new Set() }
+            };
+            filteredItems.forEach(item => {
+                const cat = catStats[item.category] ? item.category : 'Regular';
+                catStats[cat].total++;
+                if (item.isActive) catStats[cat].active++; else catStats[cat].expired++;
+                item.compGuids.forEach(g => catStats[cat].guids.add(g));
+                item.gstins.forEach(g => catStats[cat].gstins.add(g));
+
+                if (item.hasRdpLicense === 1) {
+                    catStats['RDP'].total++;
+                    if (item.isActive) catStats['RDP'].active++; else catStats['RDP'].expired++;
+                    item.compGuids.forEach(g => catStats['RDP'].guids.add(g));
+                    item.gstins.forEach(g => catStats['RDP'].gstins.add(g));
+                }
+            });
+            const nonRdpCats = ['CA', 'Accountant', 'GSTP', 'Regular'];
+            const correlationMap = {};
+            nonRdpCats.forEach(c1 => {
+                correlationMap[c1] = {};
+                nonRdpCats.forEach(c2 => {
+                    if (c1 !== c2) {
+                        const sg = [...catStats[c1].guids].filter(g => catStats[c2].guids.has(g)).length;
+                        const st = [...catStats[c1].gstins].filter(g => catStats[c2].gstins.has(g)).length;
+                        correlationMap[c1][c2] = { sharedGuids: sg, sharedGstins: st };
+                    }
+                });
+            });
+            G.categories.forEach(cat => {
+                const stat = catStats[cat];
+                const pct = ((stat.total / totalFiltered) * 100).toFixed(1);
+                const activePct = stat.total > 0 ? ((stat.active / stat.total) * 100).toFixed(0) : 0;
+                let crossHtml = '';
+                if (cat !== 'RDP') {
+                    const otherCats = nonRdpCats.filter(c => c !== cat);
+                    crossHtml = `<div class="mt-3 pt-3 border-t border-slate-100"><p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Shared CompGUID & GSTIN</p><div class="space-y-1">${otherCats.map(other => `<div class="flex items-center justify-between text-xs py-0.5"><span class="text-slate-600 font-medium">vs ${other}</span><span class="font-semibold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]">${correlationMap[cat][other].sharedGuids} GUIDs / ${correlationMap[cat][other].sharedGstins} GSTINs</span></div>`).join('')}</div></div>`;
+                } else {
+                    crossHtml = `<div class="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-500">Dedicated category tracking all RDP license holders.</div>`;
+                }
+                container.innerHTML += `<div class="card-light p-4 flex flex-col justify-between hover:border-sky-400 transition cursor-pointer" onclick="applyFilter('CATEGORY', '${cat}')"><div><div class="flex items-center justify-between"><span class="font-bold text-sm text-slate-900">${cat}</span><span class="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800">${pct}%</span></div><div class="mt-2 flex items-baseline gap-2"><span class="text-2xl font-black text-slate-900">${stat.total.toLocaleString()}</span><span class="text-xs text-slate-500">subscriptions</span></div><div class="mt-3"><div class="flex justify-between text-xs text-slate-600 font-medium mb-1"><span class="text-emerald-600 font-bold">${stat.active.toLocaleString()} Active</span><span class="text-rose-600 font-bold">${stat.expired.toLocaleString()} Expired</span></div><div class="w-full bg-rose-200 h-2 rounded-full overflow-hidden flex"><div class="bg-emerald-500 h-2" style="width: ${activePct}%"></div></div></div></div>${crossHtml}</div>`;
+            });
+        }
+
+        // 3. Main Analytics Charts
+        function renderCharts(items) {
+            const ccM = {}, pcM = {}, pM = {};
+            items.forEach(item => {
+                [
+                    [item.custCluster || 'Unassigned', ccM],
+                    [item.partnerCluster || 'Unassigned', pcM],
+                    [item.ownerPartner || 'Direct', pM]
+                ].forEach(([key, map]) => {
+                    if (!map[key]) map[key] = { total: 0, rdpLicenses: 0, rdpUsers: 0 };
+                    map[key].total++;
+                    map[key].rdpLicenses += item.hasRdpLicense;
+                    map[key].rdpUsers += item.rdpCount;
+                });
+            });
+            
+            const parse = (data) => ({
+                labels: data.map(d => d[0]), totals: data.map(d => d[1].total), rdpLicenses: data.map(d => d[1].rdpLicenses), rdpUsers: data.map(d => d[1].rdpUsers),
+                rdpUserPct: data.map(d => d[1].total > 0 ? parseFloat(((d[1].rdpUsers / d[1].total) * 100).toFixed(1)) : 0)
+            });
+            
+            const hideNcr = document.getElementById('hideNcrMain')?.checked;
+            
+            let ccEntries = Object.entries(ccM);
+            let pcEntries = Object.entries(pcM);
+            
+            if (hideNcr) {
+                ccEntries = ccEntries.filter(e => e[0] !== 'NCR');
+                pcEntries = pcEntries.filter(e => e[0] !== 'NCR');
+            }
+
+            const ccd = parse(ccEntries.sort((a,b) => b[1].total - a[1].total).slice(0,10));
+            const pcd = parse(pcEntries.sort((a,b) => b[1].total - a[1].total).slice(0,10));
+            const pd = parse(Object.entries(pM).sort((a,b) => b[1].total - a[1].total).slice(0,15));
+
+            buildComboChart('chartCustomerCluster', ccd, 'CUSTOMER_CLUSTER');
+            buildComboChart('chartPartnerCluster', pcd, 'PARTNER_CLUSTER');
+            buildComboChart('chartPartners', pd, 'OWNER_PARTNER');
+        }
+
+        function buildComboChart(canvasId, data, filterType) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (G.chartInstances[canvasId]) G.chartInstances[canvasId].destroy();
+            G.chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        { label: 'Total Subscriptions', data: data.totals, backgroundColor: 'rgba(56, 189, 248, 0.45)', borderColor: '#0284c7', borderWidth: 1.5, borderRadius: 4, yAxisID: 'yLeft', order: 2, datalabels: { anchor: 'end', align: 'top', color: '#0369a1', font: { weight: 'bold', size: 9 }, formatter: (v) => v > 0 ? v.toLocaleString() : '' } },
+                        { label: 'RDP Licenses', data: data.rdpLicenses, type: 'line', borderColor: '#10b981', backgroundColor: '#10b981', borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.2, yAxisID: 'yLeft', order: 1, datalabels: { anchor: 'center', align: 'top', color: '#047857', font: { weight: 'bold', size: 9 }, formatter: (v) => v > 0 ? v.toLocaleString() : '' } },
+                        { label: 'RDP User Ratio', data: data.rdpUserPct, type: 'line', borderColor: '#f59e0b', backgroundColor: '#f59e0b', borderWidth: 2, borderDash: [4, 4], pointStyle: 'rectRot', pointRadius: 4, pointHoverRadius: 6, tension: 0.2, yAxisID: 'yRight', order: 0, datalabels: { anchor: 'end', align: 'bottom', color: '#b45309', font: { weight: 'bold', size: 9 }, formatter: (v) => v > 0 ? `${v}%` : '' } }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#ffffff', titleColor: '#0f172a', bodyColor: '#334155', borderColor: '#cbd5e1', borderWidth: 1, padding: 10, usePointStyle: true, callbacks: { label: function(context) { let label = context.dataset.label || ''; if (context.datasetIndex === 2) { const userCount = data.rdpUsers[context.dataIndex]; return `${label}: ${context.parsed.y}% (${userCount.toLocaleString()} users)`; } return `${label}: ${context.parsed.y.toLocaleString()}`; } } } },
+                    scales: { x: { grid: { display: false }, ticks: { color: '#475569', font: { size: 10, weight: '500' }, maxRotation: 45 } }, yLeft: { type: 'linear', position: 'left', beginAtZero: true, title: { display: true, text: 'Subscriptions & RDP Licenses', color: '#0284c7', font: { size: 10, weight: 'bold' } }, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b', font: { size: 9 } } }, yRight: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'RDP User Ratio (%)', color: '#d97706', font: { size: 10, weight: 'bold' } }, grid: { drawOnChartArea: false }, ticks: { color: '#64748b', font: { size: 9 }, callback: (v) => v + '%' } } },
+                    onClick: (evt, elements) => { if (elements.length > 0) applyFilter(filterType, data.labels[elements[0].index]); }
+                }
+            });
+        }
+
+        // Global Filters
+        function applyFilter(filterType, value = null) {
+            if (G.activeFilter === filterType && G.filterValue === value) {
+                G.activeFilter = null;
+                G.filterValue = null;
+                computeAndRenderAll();
+            } else {
+                G.activeFilter = filterType;
+                G.filterValue = value;
+                computeAndRenderAll();
+                if (filterType !== 'ALL') {
+                    const items = filterDataset(Array.from(G.subscriptionsMap.values()));
+                    openRawDataModal(items, `${filterType}${value ? ' — ' + value : ''}`);
+                }
+            }
+        }
+        function resetFilters() {
+            G.activeFilter = null;
+            G.filterValue = null;
+            document.getElementById('globalSearchInput').value = '';
+            computeAndRenderAll();
+        }
+        function performGlobalSearch() {
+            const term = document.getElementById('globalSearchInput').value.trim();
+            if (!term) { resetFilters(); return; }
+            G.activeFilter = 'GLOBAL_SEARCH';
+            G.filterValue = term;
+            computeAndRenderAll();
+            const items = filterDataset(Array.from(G.subscriptionsMap.values()));
+            openRawDataModal(items, `Global Search: "${term}"`);
+        }
+
+        // ==========================================
+        // RAW DATA MODAL (Infinite Scroll & Sort)
+        // ==========================================
+        function openRawDataModal(items, title) {
+            G.modalData = items;
+            G.modalSortCol = null;
+            G.modalSortDir = 1;
+            document.getElementById('modalTitle').innerText = `Raw Data — ${title}`;
+            document.getElementById('modalSearchInput').value = '';
+            
+            // Populate Modal Dropdowns
+            const categories = new Set();
+            const expiryMonths = new Map();
+            const monthsNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            items.forEach(item => {
+                if (item.hasRdpLicense) categories.add('RDP');
+                categories.add(item.category);
+                
+                if (item.expiryDate) {
+                    const my = `${monthsNames[item.expiryDate.getMonth()]} ${item.expiryDate.getFullYear()}`;
+                    const sortVal = item.expiryDate.getFullYear() * 100 + item.expiryDate.getMonth();
+                    expiryMonths.set(my, sortVal);
+                } else {
+                    expiryMonths.set('No Expiry', 0);
+                }
+            });
+
+            const catSelect = document.getElementById('modalCategoryFilter');
+            catSelect.innerHTML = '<option value="ALL">All Categories</option>' + Array.from(categories).sort().map(c => `<option value="${c}">${c}</option>`).join('');
+            catSelect.value = 'ALL';
+
+            const expSelect = document.getElementById('modalExpiryFilter');
+            const sortedExpiry = Array.from(expiryMonths.entries()).sort((a,b) => a[1] - b[1]);
+            expSelect.innerHTML = '<option value="ALL">All Expiry Months</option>' + sortedExpiry.map(e => `<option value="${e[0]}">${e[0]}</option>`).join('');
+            expSelect.value = 'ALL';
+
+            triggerModalUpdate();
+            document.getElementById('rawDataModal').classList.add('active');
+        }
+
+        function sortModalTable(col) {
+            if (G.modalSortCol === col) {
+                G.modalSortDir *= -1;
+            } else {
+                G.modalSortCol = col;
+                G.modalSortDir = 1;
+            }
+            triggerModalUpdate();
+        }
+
+        function triggerModalUpdate() {
+            const searchTerm = document.getElementById('modalSearchInput').value.toLowerCase().trim();
+            const catFilter = document.getElementById('modalCategoryFilter').value;
+            const expFilter = document.getElementById('modalExpiryFilter').value;
+            const monthsNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+            G.filteredModalData = G.modalData.filter(item => {
+                if (searchTerm && !Object.values(item.raw).some(v => v && v.toString().toLowerCase().includes(searchTerm))) return false;
+                
+                if (catFilter !== 'ALL') {
+                    if (catFilter === 'RDP' && !item.hasRdpLicense) return false;
+                    if (catFilter !== 'RDP' && item.category !== catFilter) return false;
+                }
+
+                if (expFilter !== 'ALL') {
+                    let itemExp = 'No Expiry';
+                    if (item.expiryDate) {
+                        itemExp = `${monthsNames[item.expiryDate.getMonth()]} ${item.expiryDate.getFullYear()}`;
+                    }
+                    if (itemExp !== expFilter) return false;
+                }
+                
+                return true;
+            });
+            
+            document.getElementById('modalSubtitle').innerText = `Showing ${G.filteredModalData.length.toLocaleString()} of ${G.modalData.length.toLocaleString()} records`;
+            
+            // Calculate and display modal summary stats
+            let active = 0, expired = 0, rdpCount = 0;
+            G.filteredModalData.forEach(item => {
+                if (item.isActive) active++; else expired++;
+                rdpCount += item.rdpCount;
+            });
+
+            document.getElementById('modalSummaryStats').innerHTML = `
+                <div class="flex items-center gap-1.5"><span class="text-slate-500 font-semibold">Total:</span> <span class="font-bold text-slate-900">${G.filteredModalData.length.toLocaleString()}</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-slate-500 font-semibold">Active:</span> <span class="font-bold text-emerald-600">${active.toLocaleString()}</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-slate-500 font-semibold">Expired:</span> <span class="font-bold text-rose-600">${expired.toLocaleString()}</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-slate-500 font-semibold">RDP Users:</span> <span class="font-bold text-amber-600">${rdpCount.toLocaleString()}</span></div>
+            `;
+
+            // Apply Sorting if active
+            if (G.modalSortCol) {
+                G.filteredModalData.sort((a, b) => {
+                    let valA = a.raw[G.modalSortCol];
+                    let valB = b.raw[G.modalSortCol];
+                    if (valA === undefined || valA === null) valA = '';
+                    if (valB === undefined || valB === null) valB = '';
+                    
+                    let strA = valA.toString().trim();
+                    let strB = valB.toString().trim();
+                    
+                    let numA = parseFloat(strA);
+                    let numB = parseFloat(strB);
+                    
+                    if (!isNaN(numA) && !isNaN(numB) && strA !== '' && strB !== '') {
+                        if (numA < numB) return -1 * G.modalSortDir;
+                        if (numA > numB) return 1 * G.modalSortDir;
+                        return 0;
+                    }
+                    
+                    if (strA.toLowerCase() < strB.toLowerCase()) return -1 * G.modalSortDir;
+                    if (strA.toLowerCase() > strB.toLowerCase()) return 1 * G.modalSortDir;
+                    return 0;
+                });
+            }
+
+            const thead = document.getElementById('modalThead');
+            const tbody = document.getElementById('modalTbody');
+            
+            if (G.filteredModalData.length === 0) {
+                thead.innerHTML = '';
+                tbody.innerHTML = `<tr><td class="text-center py-12 text-slate-400 text-sm">No records match.</td></tr>`;
+                return;
+            }
+
+            // Render Sortable Headers
+            const headers = G.allHeaders.length > 0 ? G.allHeaders : Object.keys(G.filteredModalData[0].raw);
+            thead.innerHTML = `<tr>${headers.map(h => {
+                let icon = '&#8597;';
+                let iconClass = 'text-slate-400 ml-1 opacity-50';
+                if (G.modalSortCol === h) {
+                    icon = G.modalSortDir === 1 ? '&uarr;' : '&darr;';
+                    iconClass = 'text-sky-600 font-bold ml-1';
+                }
+                const safeH = h.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                return `<th class="text-left px-2 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortModalTable('${safeH}')">${h} <span class="${iconClass}">${icon}</span></th>`;
+            }).join('')}</tr>`;
+            
+            // Render Initial Data
+            G.modalVisibleCount = 0;
+            tbody.innerHTML = '';
+            loadMoreModalData();
+            document.getElementById('modalScrollContainer').scrollTop = 0;
+        }
+
+        function loadMoreModalData() {
+            if (G.modalVisibleCount >= G.filteredModalData.length) return;
+            const start = G.modalVisibleCount;
+            const end = Math.min(start + G.modalChunkSize, G.filteredModalData.length);
+            const pageData = G.filteredModalData.slice(start, end);
+            const headers = G.allHeaders.length > 0 ? G.allHeaders : Object.keys(G.filteredModalData[0].raw);
+
+            const tbody = document.getElementById('modalTbody');
+            const html = pageData.map((item, idx) => `
+                <tr class="${(start + idx) % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-sky-50">
+                    ${headers.map(h => {
+                        let val = item.raw[h] || '';
+                        const hLow = h.trim().toLowerCase();
+                        
+                        if (hLow === 'compguid') {
+                            let extraCount = 0;
+                            if (item.compGuids && item.compGuids.size > 1) {
+                                extraCount = item.compGuids.size - 1;
+                            }
+                            let sharedSubs = 0;
+                            if (item.compGuids) {
+                                const allShared = new Set();
+                                item.compGuids.forEach(g => {
+                                    const subs = G.reverseCompguidMap.get(g);
+                                    if (subs) subs.forEach(s => { if (s !== item.subNo) allShared.add(s); });
+                                });
+                                sharedSubs = allShared.size;
+                            }
+                            const totalExtra = extraCount + sharedSubs;
+                            if (totalExtra > 0) {
+                                val += ` <button onclick='openListModal(${JSON.stringify(item.subNo)}, "compGuids")' class="text-sky-600 font-bold hover:underline ml-1" title="View ${item.compGuids.size} CompGUIDs + ${sharedSubs} shared subscriptions">(+${totalExtra})</button>`;
+                            }
+                        } else if (hLow === 'gstin') {
+                            let extraCount = 0;
+                            if (item.gstins && item.gstins.size > 1) {
+                                extraCount = item.gstins.size - 1;
+                            }
+                            let sharedSubs = 0;
+                            if (item.gstins) {
+                                const allShared = new Set();
+                                item.gstins.forEach(g => {
+                                    const subs = G.reverseGstinMap.get(g);
+                                    if (subs) subs.forEach(s => { if (s !== item.subNo) allShared.add(s); });
+                                });
+                                sharedSubs = allShared.size;
+                            }
+                            const totalExtra = extraCount + sharedSubs;
+                            if (totalExtra > 0) {
+                                val += ` <button onclick='openListModal(${JSON.stringify(item.subNo)}, "gstins")' class="text-sky-600 font-bold hover:underline ml-1" title="View ${item.gstins.size} GSTINs + ${sharedSubs} shared subscriptions">(+${totalExtra})</button>`;
+                            }
+                        }
+                        
+                        return `<td class="px-2 py-1.5 border-b border-slate-100 whitespace-nowrap">${val}</td>`;
+                    }).join('')}
+                </tr>
+            `).join('');
+            
+            tbody.insertAdjacentHTML('beforeend', html);
+            G.modalVisibleCount = end;
+        }
+
+        function handleModalScroll() {
+            const container = document.getElementById('modalScrollContainer');
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 50) {
+                loadMoreModalData();
+            }
+        }
+
+        function closeModal() { document.getElementById('rawDataModal').classList.remove('active'); }
+        function closeModalOnBackdrop(e) { if (e.target.id === 'rawDataModal') closeModal(); }
+        function exportModalCSV() {
+            if (G.filteredModalData.length === 0) { alert('No data to export.'); return; }
+            const headers = G.allHeaders.length > 0 ? G.allHeaders : Object.keys(G.filteredModalData[0].raw);
+            const csv = [headers.join(','), ...G.filteredModalData.map(item => headers.map(h => `"${(item.raw[h] || '').toString().replace(/"/g, '""')}"`).join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `raw_data_export_${Date.now()}.csv`; a.click(); URL.revokeObjectURL(url);
+        }
+
+        // ==========================================
+        // LIST MODAL LOGIC (Cross-Reference Table with Sorting)
+        // ==========================================
+        function openListModal(subNo, listType) {
+            const sub = G.subscriptionsMap.get(subNo);
+            if (!sub) return;
+
+            const isCompGuid = (listType === 'compGuids');
+            const identifierLabel = isCompGuid ? 'COMPGUID' : 'GSTIN';
+            const reverseMap = isCompGuid ? G.reverseCompguidMap : G.reverseGstinMap;
+            const identifiers = sub[listType];
+
+            document.getElementById('listModalTitle').innerText = `${identifierLabel} Cross-Reference for Sub No: ${subNo}`;
+
+            // Reset Sorting State
+            G.listSortCol = null;
+            G.listSortDir = 1;
+            G.listModalIdentifierLabel = identifierLabel;
+
+            const rows = [];
+
+            identifiers.forEach(identifier => {
+                const matchingSubNos = reverseMap.get(identifier);
+                if (!matchingSubNos) return;
+
+                matchingSubNos.forEach(targetSubNo => {
+                    const targetSub = G.subscriptionsMap.get(targetSubNo);
+                    if (!targetSub) return;
+
+                    rows.push({
+                        identifier: identifier,
+                        otherSubNo: targetSubNo === subNo ? `${targetSubNo} (Current)` : targetSubNo,
+                        isCurrent: targetSubNo === subNo,
+                        expiryDate: targetSub.expiryDate,
+                        lastActiveDate: targetSub.lastActiveDate,
+                        custCluster: targetSub.custCluster || '—',
+                        ownerPartner: targetSub.ownerPartner || '—',
+                        rdpCount: targetSub.rdpCount || 0
+                    });
+                });
+            });
+
+            G.listModalRows = rows;
+            renderListModalTable();
+            
+            document.getElementById('listModal').classList.add('active');
+        }
+
+        function sortListTable(col) {
+            if (G.listSortCol === col) {
+                G.listSortDir *= -1;
+            } else {
+                G.listSortCol = col;
+                G.listSortDir = 1;
+            }
+            renderListModalTable();
+        }
+
+        function renderListModalTable() {
+            // Sorting Logic
+            if (G.listSortCol) {
+                G.listModalRows.sort((a, b) => {
+                    let valA = a[G.listSortCol];
+                    let valB = b[G.listSortCol];
+
+                    if (valA === null || valA === undefined) valA = '';
+                    if (valB === null || valB === undefined) valB = '';
+
+                    if (valA instanceof Date) valA = valA.getTime();
+                    if (valB instanceof Date) valB = valB.getTime();
+
+                    if (typeof valA === 'string') valA = valA.toLowerCase();
+                    if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                    if (valA < valB) return -1 * G.listSortDir;
+                    if (valA > valB) return 1 * G.listSortDir;
+                    return 0;
+                });
+            }
+
+            // Render Header with Sort Icons
+            const thead = document.getElementById('listModalThead');
+            const getIcon = (col) => {
+                if (G.listSortCol === col) {
+                    return `<span class="text-sky-600 font-bold ml-1">${G.listSortDir === 1 ? '&uarr;' : '&darr;'}</span>`;
+                }
+                return `<span class="text-slate-400 ml-1 opacity-50">&#8597;</span>`;
+            };
+
+            thead.innerHTML = `<tr>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortListTable('identifier')">${G.listModalIdentifierLabel} ${getIcon('identifier')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortListTable('otherSubNo')">Other Serial Number ${getIcon('otherSubNo')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortListTable('expiryDate')">Expiry Date ${getIcon('expiryDate')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortListTable('lastActiveDate')">Last Active Date ${getIcon('lastActiveDate')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortListTable('custCluster')">Customer Cluster ${getIcon('custCluster')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortListTable('ownerPartner')">Owner Partner ${getIcon('ownerPartner')}</th>
+                <th class="text-right px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortListTable('rdpCount')">RDP Count ${getIcon('rdpCount')}</th>
+            </tr>`;
+
+            // Render Body
+            const fmtDate = (d) => d ? d.toLocaleDateString('en-GB') : '—';
+            const tbody = document.getElementById('listModalContent');
+            tbody.innerHTML = G.listModalRows.map((r, idx) => `
+                <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-sky-50">
+                    <td class="px-3 py-1.5 border-b border-slate-100 font-mono text-[11px]">${r.identifier}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100 font-mono text-[11px] ${r.isCurrent ? 'text-slate-500' : 'text-sky-700 font-semibold'}">${r.otherSubNo}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100 text-[11px]">${fmtDate(r.expiryDate)}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100 text-[11px]">${fmtDate(r.lastActiveDate)}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100 text-[11px]">${r.custCluster}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100 text-[11px]">${r.ownerPartner}</td>
+                    <td class="px-3 py-1.5 border-b border-slate-100 text-[11px] text-right font-semibold">${r.rdpCount.toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        function closeListModal() {
+            document.getElementById('listModal').classList.remove('active');
+        }
+
+        function closeListModalOnBackdrop(e) {
+            if (e.target.id === 'listModal') closeListModal();
+        }
+
+        // ==========================================
+        // MIGRATION ANALYTICS (Charts & Table)
+        // ==========================================
+        function sortMigrationTable(col) {
+            if (G.migrationSortCol === col) {
+                G.migrationSortDir *= -1; 
+            } else {
+                G.migrationSortCol = col;
+                G.migrationSortDir = 1; 
+            }
+            triggerMigrationUpdate();
+        }
+
+        function updateSortIcons() {
+            const columns = ['subNo', 'category', 'guids', 'expiry', 'status', 'migratedTo', 'matchKey', 'migDate'];
+            columns.forEach(col => {
+                const iconSpan = document.getElementById(`sort-icon-${col}`);
+                if (iconSpan) {
+                    if (G.migrationSortCol === col) {
+                        iconSpan.innerHTML = G.migrationSortDir === 1 ? '&uarr;' : '&darr;';
+                        iconSpan.className = 'text-sky-600 font-bold ml-1';
+                    } else {
+                        iconSpan.innerHTML = '&#8597;'; 
+                        iconSpan.className = 'text-slate-400 ml-1 opacity-50';
+                    }
+                }
+            });
+        }
+
+        function triggerMigrationUpdate() {
+            const filterType = document.getElementById('migrationFilterType').value;
+            const categoryFilter = document.getElementById('migrationCategoryFilter').value;
+            const clusterFilter = document.getElementById('migrationClusterFilter').value;
+            const searchTerm = document.getElementById('migrationSearchInput').value.toLowerCase().trim();
+
+            let filtered = G.migrationData;
+
+            if (filterType !== 'ALL') filtered = filtered.filter(m => m.status === filterType);
+            if (categoryFilter !== 'ALL') filtered = filtered.filter(m => m.expired.category === categoryFilter);
+            if (clusterFilter !== 'ALL') filtered = filtered.filter(m => m.expired.custCluster === clusterFilter);
+            
+            if (searchTerm) {
+                filtered = filtered.filter(m => {
+                    const searchIn = [
+                        m.expired.subNo, m.expired.primaryCompGuid, m.expired.primaryGstin, m.expired.category,
+                        m.migratedTo?.subNo, m.migratedTo?.primaryCompGuid, m.migratedTo?.primaryGstin
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    return searchIn.includes(searchTerm);
+                });
+            }
+
+            if (G.migrationSortCol) {
+                filtered.sort((a, b) => {
+                    let valA, valB;
+                    if (G.migrationSortCol === 'subNo') { valA = a.expired.subNo; valB = b.expired.subNo; }
+                    else if (G.migrationSortCol === 'category') { valA = a.expired.category; valB = b.expired.category; }
+                    else if (G.migrationSortCol === 'guids') { valA = a.expired.primaryCompGuid || a.expired.primaryGstin || ''; valB = b.expired.primaryCompGuid || b.expired.primaryGstin || ''; }
+                    else if (G.migrationSortCol === 'expiry') { valA = a.expired.expiryDate ? a.expired.expiryDate.getTime() : 0; valB = b.expired.expiryDate ? b.expired.expiryDate.getTime() : 0; }
+                    else if (G.migrationSortCol === 'status') { valA = a.status; valB = b.status; }
+                    else if (G.migrationSortCol === 'migratedTo') { valA = a.migratedTo ? a.migratedTo.subNo : ''; valB = b.migratedTo ? b.migratedTo.subNo : ''; }
+                    else if (G.migrationSortCol === 'matchKey') { valA = a.matchKey || ''; valB = b.matchKey || ''; }
+                    else if (G.migrationSortCol === 'migDate') { valA = a.migrationDate ? a.migrationDate.getTime() : 0; valB = b.migrationDate ? b.migrationDate.getTime() : 0; }
+                    if (valA < valB) return -1 * G.migrationSortDir;
+                    if (valA > valB) return 1 * G.migrationSortDir;
+                    return 0;
+                });
+            }
+            updateSortIcons();
+
+            G.filteredMigrationData = filtered;
+
+            // Render Metrics
+            const total = filtered.length;
+            const regular = filtered.filter(m => m.status === 'REGULAR').length;
+            const rdp = filtered.filter(m => m.status === 'RDP').length;
+            const churned = filtered.filter(m => m.status === 'NOT_MIGRATED').length;
+            document.getElementById('mig-total-expired').innerText = total.toLocaleString();
+            document.getElementById('mig-regular').innerText = regular.toLocaleString();
+            document.getElementById('mig-rdp').innerText = rdp.toLocaleString();
+            document.getElementById('mig-churned').innerText = churned.toLocaleString();
+
+            // Render Charts based on Table Data
+            renderMigrationCharts(filtered);
+
+            // Render Initial Table Data (Infinite Scroll)
+            G.migrationVisibleCount = 0;
+            document.getElementById('migrationTableBody').innerHTML = '';
+            loadMoreMigrationData();
+            document.getElementById('migrationScrollContainer').scrollTop = 0;
+        }
+
+        // New Migration Combo Charts
+        function renderMigrationCharts(filteredMigration) {
+            const ccM = {}, pcM = {};
+            filteredMigration.forEach(m => {
+                const cClust = m.expired.custCluster || 'Unassigned';
+                const pClust = m.expired.partnerCluster || 'Unassigned';
+                
+                if (!ccM[cClust]) ccM[cClust] = { expired: 0, rdp: 0, regular: 0 };
+                ccM[cClust].expired++;
+                if (m.status === 'RDP') ccM[cClust].rdp++;
+                if (m.status === 'REGULAR') ccM[cClust].regular++;
+
+                if (!pcM[pClust]) pcM[pClust] = { expired: 0, rdp: 0, regular: 0 };
+                pcM[pClust].expired++;
+                if (m.status === 'RDP') pcM[pClust].rdp++;
+                if (m.status === 'REGULAR') pcM[pClust].regular++;
+            });
+
+            const hideNcr = document.getElementById('hideNcrMig')?.checked;
+
+            const parse = (map) => {
+                let entries = Object.entries(map);
+                if (hideNcr) {
+                    entries = entries.filter(e => e[0] !== 'NCR');
+                }
+                const sorted = entries.sort((a,b) => b[1].expired - a[1].expired).slice(0, 10);
+                return {
+                    labels: sorted.map(d => d[0]),
+                    expired: sorted.map(d => d[1].expired),
+                    rdp: sorted.map(d => d[1].rdp),
+                    regular: sorted.map(d => d[1].regular),
+                    rdpPct: sorted.map(d => d[1].expired > 0 ? parseFloat(((d[1].rdp / d[1].expired)*100).toFixed(1)) : 0),
+                    regularPct: sorted.map(d => d[1].expired > 0 ? parseFloat(((d[1].regular / d[1].expired)*100).toFixed(1)) : 0)
+                };
+            };
+
+            buildMigrationComboChart('chartMigCustomerCluster', parse(ccM));
+            buildMigrationComboChart('chartMigPartnerCluster', parse(pcM));
+        }
+
+        function buildMigrationComboChart(canvasId, data) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (G.chartInstances[canvasId]) G.chartInstances[canvasId].destroy();
+            G.chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        { label: 'Expired Licenses', data: data.expired, backgroundColor: 'rgba(225, 29, 72, 0.45)', borderColor: '#e11d48', borderWidth: 1.5, borderRadius: 4, yAxisID: 'yLeft', order: 2, datalabels: { anchor: 'end', align: 'top', color: '#be123c', font: { weight: 'bold', size: 9 }, formatter: (v) => v > 0 ? v.toLocaleString() : '' } },
+                        { label: 'New Activation %', data: data.regularPct, type: 'line', borderColor: '#10b981', backgroundColor: '#10b981', borderWidth: 2, pointRadius: 3, pointHoverRadius: 5, tension: 0.2, yAxisID: 'yRight', order: 1, datalabels: { anchor: 'center', align: 'top', color: '#047857', font: { weight: 'bold', size: 9 }, formatter: (v) => v > 0 ? `${v}%` : '' } },
+                        { label: 'RDP Switch %', data: data.rdpPct, type: 'line', borderColor: '#f59e0b', backgroundColor: '#f59e0b', borderWidth: 2, borderDash: [4, 4], pointStyle: 'rectRot', pointRadius: 4, pointHoverRadius: 6, tension: 0.2, yAxisID: 'yRight', order: 0, datalabels: { anchor: 'end', align: 'bottom', color: '#b45309', font: { weight: 'bold', size: 9 }, formatter: (v) => v > 0 ? `${v}%` : '' } }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#ffffff', titleColor: '#0f172a', bodyColor: '#334155', borderColor: '#cbd5e1', borderWidth: 1, padding: 10, usePointStyle: true, callbacks: { label: function(context) { let label = context.dataset.label || ''; if (context.datasetIndex === 1) return `${label}: ${context.parsed.y}% (${data.regular[context.dataIndex]} licenses)`; if (context.datasetIndex === 2) return `${label}: ${context.parsed.y}% (${data.rdp[context.dataIndex]} licenses)`; return `${label}: ${context.parsed.y.toLocaleString()}`; } } } },
+                    scales: { x: { grid: { display: false }, ticks: { color: '#475569', font: { size: 10, weight: '500' }, maxRotation: 45 } }, yLeft: { type: 'linear', position: 'left', beginAtZero: true, title: { display: true, text: 'Expired Licenses', color: '#e11d48', font: { size: 10, weight: 'bold' } }, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b', font: { size: 9 } } }, yRight: { type: 'linear', position: 'right', beginAtZero: true, title: { display: true, text: 'Migration Ratio (%)', color: '#334155', font: { size: 10, weight: 'bold' } }, grid: { drawOnChartArea: false }, ticks: { color: '#64748b', font: { size: 9 }, callback: (v) => v + '%' } } }
+                }
+            });
+        }
+
+        // Infinite Scroll specific logic for Migration Table
+        function loadMoreMigrationData() {
+            if (G.migrationVisibleCount >= G.filteredMigrationData.length) return;
+            const start = G.migrationVisibleCount;
+            const end = Math.min(start + G.migrationChunkSize, G.filteredMigrationData.length);
+            const pageData = G.filteredMigrationData.slice(start, end);
+            
+            const tbody = document.getElementById('migrationTableBody');
+            if (start === 0 && pageData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-400">No migration records found.</td></tr>`;
+                document.getElementById('migrationPageInfo').innerText = `Showing 0 records`;
+                return;
+            }
+
+            const fmtDate = (d) => d ? d.toLocaleDateString('en-GB') : '—';
+            const statusBadge = (s) => {
+                if (s === 'REGULAR') return `<span class="badge-tag bg-emerald-100 text-emerald-800">✓ Renewed</span>`;
+                if (s === 'RDP') return `<span class="badge-tag bg-amber-100 text-amber-800">→ RDP</span>`;
+                return `<span class="badge-tag bg-slate-200 text-slate-700">✗ Churned</span>`;
+            };
+
+            const html = pageData.map(m => `
+                <tr class="border-b border-slate-100 hover:bg-sky-50">
+                    <td class="px-3 py-2 font-mono text-[11px] text-slate-800">${m.expired.subNo}</td>
+                    <td class="px-3 py-2"><span class="badge-tag bg-slate-100 text-slate-700">${m.expired.category}</span></td>
+                    <td class="px-3 py-2 text-[11px] text-slate-600">
+                        ${m.expired.primaryCompGuid ? `<div class="truncate max-w-[140px]" title="${m.expired.primaryCompGuid}">🔑 ${m.expired.primaryCompGuid}</div>` : ''}
+                        ${m.expired.primaryGstin ? `<div class="truncate max-w-[140px]" title="${m.expired.primaryGstin}">📋 ${m.expired.primaryGstin}</div>` : ''}
+                    </td>
+                    <td class="px-3 py-2 text-rose-600 font-medium">${fmtDate(m.expired.expiryDate)}</td>
+                    <td class="px-3 py-2 text-center">${statusBadge(m.status)}</td>
+                    <td class="px-3 py-2 font-mono text-[11px] text-emerald-700">${m.migratedTo ? m.migratedTo.subNo : '—'}</td>
+                    <td class="px-3 py-2 text-[11px] text-indigo-700 font-medium">${m.matchKey || '—'}</td>
+                    <td class="px-3 py-2 text-[11px] text-slate-600">${m.migrationDate ? fmtDate(m.migrationDate) + ` <span class="text-slate-400">(${m.migrationType})</span>` : '—'}</td>
+                    <td class="px-3 py-2 text-center">
+                        <button onclick='viewMigrationDetail(${JSON.stringify(m.expired.subNo)})' class="text-xs bg-sky-100 hover:bg-sky-200 text-sky-700 font-semibold px-2 py-1 rounded">Details</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            tbody.insertAdjacentHTML('beforeend', html);
+            G.migrationVisibleCount = end;
+            document.getElementById('migrationPageInfo').innerText = `Showing 1-${end} of ${G.filteredMigrationData.length.toLocaleString()} records`;
+        }
+
+        function handleMigrationScroll() {
+            const container = document.getElementById('migrationScrollContainer');
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 50) {
+                loadMoreMigrationData();
+            }
+        }
+
+        function viewMigrationDetail(subNo) {
+            const migration = G.migrationData.find(m => m.expired.subNo === subNo);
+            if (!migration) return;
+            const items = [migration.expired];
+            if (migration.migratedTo) items.push(migration.migratedTo);
+            openRawDataModal(items, `Migration Trace — ${subNo}`);
+        }
+    </script>
+</body>
+</html>
+```
