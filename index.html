@@ -82,7 +82,7 @@
                     </h1>
                     <p class="text-sm text-slate-500 mt-0.5">Active Expiry Cutoff: <span class="font-semibold text-slate-700">01/09/2026</span></p>
                 </div>
-                
+               
                 <div class="flex items-center gap-3">
                     <label class="cursor-pointer bg-sky-600 hover:bg-sky-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
@@ -99,10 +99,10 @@
             <div class="mt-3 relative">
                 <div class="relative">
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    <input 
-                        type="text" 
-                        id="globalSearchInput" 
-                        placeholder="🔍 Global Search: Type Subscription No, GSTIN, CompGUID, Partner, Cluster, Category or any raw data field..." 
+                    <input
+                        type="text"
+                        id="globalSearchInput"
+                        placeholder="🔍 Global Search: Type Subscription No, GSTIN, CompGUID, Partner, Cluster, Category or any raw data field..."
                         class="w-full pl-10 pr-24 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none bg-slate-50"
                     >
                     <button id="searchSubmitBtn" onclick="performGlobalSearch()" class="absolute right-1.5 top-1/2 -translate-y-1/2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-1.5 rounded-md">
@@ -110,7 +110,7 @@
                     </button>
                 </div>
             </div>
-            
+           
             <div id="statusBox" class="hidden mt-3 p-3 rounded-lg text-sm flex items-center justify-between">
                 <div class="flex items-center gap-2" id="statusMessage"></div>
                 <div id="progressBarContainer" class="w-48 bg-slate-200 rounded-full h-2 hidden">
@@ -279,10 +279,10 @@
                         <option value="RDP">RDP Migration</option>
                         <option value="NOT_MIGRATED">Not Migrated (Churned)</option>
                     </select>
-                    <input 
-                        type="text" 
-                        id="migrationSearchInput" 
-                        placeholder="Search table..." 
+                    <input
+                        type="text"
+                        id="migrationSearchInput"
+                        placeholder="Search table..."
                         oninput="triggerMigrationUpdate()"
                         class="text-xs border border-slate-300 rounded-md px-2 py-1.5 w-40 sm:w-52 bg-white"
                     >
@@ -469,7 +469,7 @@
             categories: ['CA', 'Accountant', 'GSTP', 'Regular', 'RDP'],
             chartInstances: {},
             migrationData: [],
-            
+           
             // Reverse lookup maps for (+N) cross-reference
             reverseCompguidMap: new Map(),
             reverseGstinMap: new Map(),
@@ -479,7 +479,7 @@
             migrationVisibleCount: 0,
             migrationChunkSize: 25,
             migrationSortCol: null,
-            migrationSortDir: 1, 
+            migrationSortDir: 1,
 
             // Modal Scroll State
             modalData: [],
@@ -613,7 +613,7 @@
                     buildMigrationIndex();
                     computeAndRenderAll();
                     statusMsg.innerHTML = `<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Ingestion complete — ${G.subscriptionsMap.size.toLocaleString()} unique subscriptions loaded automatically!`;
-                    
+                   
                     setTimeout(() => {
                         statusBox.classList.add('hidden');
                     }, 4000);
@@ -725,18 +725,18 @@
                             statusMsg.innerHTML = `<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Deduplicated ${G.subscriptionsMap.size.toLocaleString()} unique subscriptions. Building migration index...`;
                             statusBox.classList.remove('bg-sky-50', 'text-sky-800');
                             statusBox.classList.add('bg-emerald-50', 'text-emerald-800');
-                            
+                           
                             setTimeout(() => {
                                 buildReverseLookupMaps();
                                 buildMigrationIndex();
                                 computeAndRenderAll();
                                 statusMsg.innerHTML = `<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Ingestion complete — ${G.subscriptionsMap.size.toLocaleString()} unique subscriptions.`;
-                                
+                               
                                 // Auto-hide the banner after 4 seconds
                                 setTimeout(() => {
                                     statusBox.classList.add('hidden');
                                 }, 4000);
-                                
+                               
                             }, 100);
                         }
                     },
@@ -932,9 +932,9 @@
             });
 
             // Populate Dropdowns
-            document.getElementById('migrationCategoryFilter').innerHTML = '<option value="ALL">All Categories</option>' + 
+            document.getElementById('migrationCategoryFilter').innerHTML = '<option value="ALL">All Categories</option>' +
                 Array.from(uniqueCats).sort().map(c => `<option value="${c}">${c}</option>`).join('');
-            document.getElementById('migrationClusterFilter').innerHTML = '<option value="ALL">All Clusters</option>' + 
+            document.getElementById('migrationClusterFilter').innerHTML = '<option value="ALL">All Clusters</option>' +
                 Array.from(uniqueClusters).sort().map(c => `<option value="${c}">${c}</option>`).join('');
         }
 
@@ -944,7 +944,7 @@
             renderSummaryOverview(filteredItems);
             renderCategoryBreakdown(filteredItems);
             renderCharts(filteredItems);
-            triggerMigrationUpdate(); 
+            triggerMigrationUpdate();
         }
 
         function filterDataset(items) {
@@ -1070,17 +1070,17 @@
                     map[key].rdpUsers += item.rdpCount;
                 });
             });
-            
+           
             const parse = (data) => ({
                 labels: data.map(d => d[0]), totals: data.map(d => d[1].total), rdpLicenses: data.map(d => d[1].rdpLicenses), rdpUsers: data.map(d => d[1].rdpUsers),
                 rdpUserPct: data.map(d => d[1].total > 0 ? parseFloat(((d[1].rdpUsers / d[1].total) * 100).toFixed(1)) : 0)
             });
-            
+           
             const hideNcr = document.getElementById('hideNcrMain')?.checked;
-            
+           
             let ccEntries = Object.entries(ccM);
             let pcEntries = Object.entries(pcM);
-            
+           
             if (hideNcr) {
                 ccEntries = ccEntries.filter(e => e[0] !== 'NCR');
                 pcEntries = pcEntries.filter(e => e[0] !== 'NCR');
@@ -1157,16 +1157,16 @@
             G.modalSortDir = 1;
             document.getElementById('modalTitle').innerText = `Raw Data — ${title}`;
             document.getElementById('modalSearchInput').value = '';
-            
+           
             // Populate Modal Dropdowns
             const categories = new Set();
             const expiryMonths = new Map();
             const monthsNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            
+           
             items.forEach(item => {
                 if (item.hasRdpLicense) categories.add('RDP');
                 categories.add(item.category);
-                
+               
                 if (item.expiryDate) {
                     const my = `${monthsNames[item.expiryDate.getMonth()]} ${item.expiryDate.getFullYear()}`;
                     const sortVal = item.expiryDate.getFullYear() * 100 + item.expiryDate.getMonth();
@@ -1207,7 +1207,7 @@
 
             G.filteredModalData = G.modalData.filter(item => {
                 if (searchTerm && !Object.values(item.raw).some(v => v && v.toString().toLowerCase().includes(searchTerm))) return false;
-                
+               
                 if (catFilter !== 'ALL') {
                     if (catFilter === 'RDP' && !item.hasRdpLicense) return false;
                     if (catFilter !== 'RDP' && item.category !== catFilter) return false;
@@ -1220,12 +1220,12 @@
                     }
                     if (itemExp !== expFilter) return false;
                 }
-                
+               
                 return true;
             });
-            
+           
             document.getElementById('modalSubtitle').innerText = `Showing ${G.filteredModalData.length.toLocaleString()} of ${G.modalData.length.toLocaleString()} records`;
-            
+           
             // Calculate and display modal summary stats
             let active = 0, expired = 0, rdpCount = 0;
             G.filteredModalData.forEach(item => {
@@ -1247,19 +1247,19 @@
                     let valB = b.raw[G.modalSortCol];
                     if (valA === undefined || valA === null) valA = '';
                     if (valB === undefined || valB === null) valB = '';
-                    
+                   
                     let strA = valA.toString().trim();
                     let strB = valB.toString().trim();
-                    
+                   
                     let numA = parseFloat(strA);
                     let numB = parseFloat(strB);
-                    
+                   
                     if (!isNaN(numA) && !isNaN(numB) && strA !== '' && strB !== '') {
                         if (numA < numB) return -1 * G.modalSortDir;
                         if (numA > numB) return 1 * G.modalSortDir;
                         return 0;
                     }
-                    
+                   
                     if (strA.toLowerCase() < strB.toLowerCase()) return -1 * G.modalSortDir;
                     if (strA.toLowerCase() > strB.toLowerCase()) return 1 * G.modalSortDir;
                     return 0;
@@ -1268,7 +1268,7 @@
 
             const thead = document.getElementById('modalThead');
             const tbody = document.getElementById('modalTbody');
-            
+           
             if (G.filteredModalData.length === 0) {
                 thead.innerHTML = '';
                 tbody.innerHTML = `<tr><td class="text-center py-12 text-slate-400 text-sm">No records match.</td></tr>`;
@@ -1287,7 +1287,7 @@
                 const safeH = h.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 return `<th class="text-left px-2 py-2 font-semibold text-slate-700 border-b border-slate-200 whitespace-nowrap cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortModalTable('${safeH}')">${h} <span class="${iconClass}">${icon}</span></th>`;
             }).join('')}</tr>`;
-            
+           
             // Render Initial Data
             G.modalVisibleCount = 0;
             tbody.innerHTML = '';
@@ -1308,7 +1308,7 @@
                     ${headers.map(h => {
                         let val = item.raw[h] || '';
                         const hLow = h.trim().toLowerCase();
-                        
+                       
                         if (hLow === 'compguid') {
                             let extraCount = 0;
                             if (item.compGuids && item.compGuids.size > 1) {
@@ -1346,12 +1346,12 @@
                                 val += ` <button onclick='openListModal(${JSON.stringify(item.subNo)}, "gstins")' class="text-sky-600 font-bold hover:underline ml-1" title="View ${item.gstins.size} GSTINs + ${sharedSubs} shared subscriptions">(+${totalExtra})</button>`;
                             }
                         }
-                        
+                       
                         return `<td class="px-2 py-1.5 border-b border-slate-100 whitespace-nowrap">${val}</td>`;
                     }).join('')}
                 </tr>
             `).join('');
-            
+           
             tbody.insertAdjacentHTML('beforeend', html);
             G.modalVisibleCount = end;
         }
@@ -1418,7 +1418,7 @@
 
             G.listModalRows = rows;
             renderListModalTable();
-            
+           
             document.getElementById('listModal').classList.add('active');
         }
 
@@ -1502,10 +1502,10 @@
         // ==========================================
         function sortMigrationTable(col) {
             if (G.migrationSortCol === col) {
-                G.migrationSortDir *= -1; 
+                G.migrationSortDir *= -1;
             } else {
                 G.migrationSortCol = col;
-                G.migrationSortDir = 1; 
+                G.migrationSortDir = 1;
             }
             triggerMigrationUpdate();
         }
@@ -1519,7 +1519,7 @@
                         iconSpan.innerHTML = G.migrationSortDir === 1 ? '&uarr;' : '&darr;';
                         iconSpan.className = 'text-sky-600 font-bold ml-1';
                     } else {
-                        iconSpan.innerHTML = '&#8597;'; 
+                        iconSpan.innerHTML = '&#8597;';
                         iconSpan.className = 'text-slate-400 ml-1 opacity-50';
                     }
                 }
@@ -1537,7 +1537,7 @@
             if (filterType !== 'ALL') filtered = filtered.filter(m => m.status === filterType);
             if (categoryFilter !== 'ALL') filtered = filtered.filter(m => m.expired.category === categoryFilter);
             if (clusterFilter !== 'ALL') filtered = filtered.filter(m => m.expired.custCluster === clusterFilter);
-            
+           
             if (searchTerm) {
                 filtered = filtered.filter(m => {
                     const searchIn = [
@@ -1603,7 +1603,7 @@
             filteredMigration.forEach(m => {
                 const cClust = m.expired.custCluster || 'Unassigned';
                 const pClust = m.expired.partnerCluster || 'Unassigned';
-                
+               
                 if (!ccM[cClust]) ccM[cClust] = { expired: 0, rdp: 0, regular: 0 };
                 ccM[cClust].expired++;
                 if (m.status === 'RDP') ccM[cClust].rdp++;
@@ -1663,7 +1663,7 @@
             const start = G.migrationVisibleCount;
             const end = Math.min(start + G.migrationChunkSize, G.filteredMigrationData.length);
             const pageData = G.filteredMigrationData.slice(start, end);
-            
+           
             const tbody = document.getElementById('migrationTableBody');
             if (start === 0 && pageData.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-400">No migration records found.</td></tr>`;
@@ -1738,20 +1738,6 @@
                 // Also count in RDP virtual category
                 catSummary['RDP'].licenses++;
                 catSummary['RDP'].users += item.rdpCount;
-
-                // PRECALCULATE COMPGUID STATS
-                const cgSubs = new Set();
-                if (item.compGuids) item.compGuids.forEach(g => { const s = G.reverseCompguidMap.get(g); if(s) s.forEach(x => cgSubs.add(x)); });
-                let cgTotal = cgSubs.size, cgActive = 0, cgExpired = 0;
-                cgSubs.forEach(s => { const sub = G.subscriptionsMap.get(s); if(sub) { if(sub.isActive) cgActive++; else cgExpired++; }});
-                item._cgTotal = cgTotal; item._cgActive = cgActive; item._cgExpired = cgExpired;
-
-                // PRECALCULATE GSTIN STATS
-                const gsSubs = new Set();
-                if (item.gstins) item.gstins.forEach(g => { const s = G.reverseGstinMap.get(g); if(s) s.forEach(x => gsSubs.add(x)); });
-                let gsTotal = gsSubs.size, gsActive = 0, gsExpired = 0;
-                gsSubs.forEach(s => { const sub = G.subscriptionsMap.get(s); if(sub) { if(sub.isActive) gsActive++; else gsExpired++; }});
-                item._gsTotal = gsTotal; item._gsActive = gsActive; item._gsExpired = gsExpired;
             });
 
             // Render summary table (exclude RDP virtual row, add TOTAL row)
@@ -1790,7 +1776,6 @@
             document.getElementById('uniqueRdpModal').classList.add('active');
         }
 
-        <script>
         function sortUniqueRdpTable(col) {
             if (G.uniqueRdpSortCol === col) {
                 G.uniqueRdpSortDir *= -1;
@@ -1809,12 +1794,6 @@
                     let valA, valB;
                     switch (G.uniqueRdpSortCol) {
                         case 'subNo': valA = a.subNo; valB = b.subNo; break;
-                        case 'cgTotal': valA = a._cgTotal || 0; valB = b._cgTotal || 0; break;
-                        case 'cgActive': valA = a._cgActive || 0; valB = b._cgActive || 0; break;
-                        case 'cgExpired': valA = a._cgExpired || 0; valB = b._cgExpired || 0; break;
-                        case 'gsTotal': valA = a._gsTotal || 0; valB = b._gsTotal || 0; break;
-                        case 'gsActive': valA = a._gsActive || 0; valB = b._gsActive || 0; break;
-                        case 'gsExpired': valA = a._gsExpired || 0; valB = b._gsExpired || 0; break;
                         case 'category': valA = a.category || ''; valB = b.category || ''; break;
                         case 'custCluster': valA = a.custCluster || ''; valB = b.custCluster || ''; break;
                         case 'activationDate': valA = a.activationDate ? a.activationDate.getTime() : 0; valB = b.activationDate ? b.activationDate.getTime() : 0; break;
@@ -1832,37 +1811,14 @@
 
             const getIcon = (col) => {
                 if (G.uniqueRdpSortCol === col) {
-                    return `<span class="text-purple-600 font-bold ml-0.5">${G.uniqueRdpSortDir === 1 ? '&uarr;' : '&darr;'}</span>`;
+                    return `<span class="text-purple-600 font-bold ml-1">${G.uniqueRdpSortDir === 1 ? '&uarr;' : '&darr;'}</span>`;
                 }
-                return `<span class="text-slate-400 ml-0.5 opacity-50">&#8597;</span>`;
-            };
-
-            const subIcon = (col) => {
-                if (G.uniqueRdpSortCol === col) {
-                    return `<span class="text-purple-600 font-bold">${G.uniqueRdpSortDir === 1 ? '↑' : '↓'}</span>`;
-                }
-                return `<span class="text-slate-400 opacity-40">↕</span>`;
+                return `<span class="text-slate-400 ml-1 opacity-50">&#8597;</span>`;
             };
 
             const thead = document.getElementById('uniqueRdpRawThead');
             thead.innerHTML = `<tr>
                 <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('subNo')">Subscription Number ${getIcon('subNo')}</th>
-                <th class="px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 min-w-[150px]">
-                    <div class="text-center mb-1">COMPGUID</div>
-                    <div class="flex items-center justify-between text-[9px] uppercase font-medium border-t border-slate-200 pt-1">
-                        <span class="flex-1 text-center cursor-pointer hover:bg-slate-200 rounded px-0.5 py-0.5 transition-colors select-none" onclick="sortUniqueRdpTable('cgTotal')" title="Sort by Total Subs ID">TOTAL ${subIcon('cgTotal')}</span>
-                        <span class="flex-1 text-center text-emerald-600 cursor-pointer hover:bg-emerald-50 rounded px-0.5 py-0.5 transition-colors select-none" onclick="sortUniqueRdpTable('cgActive')" title="Sort by Active">ACT ${subIcon('cgActive')}</span>
-                        <span class="flex-1 text-center text-rose-600 cursor-pointer hover:bg-rose-50 rounded px-0.5 py-0.5 transition-colors select-none" onclick="sortUniqueRdpTable('cgExpired')" title="Sort by Expired">EXP ${subIcon('cgExpired')}</span>
-                    </div>
-                </th>
-                <th class="px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 min-w-[150px]">
-                    <div class="text-center mb-1">GSTIN</div>
-                    <div class="flex items-center justify-between text-[9px] uppercase font-medium border-t border-slate-200 pt-1">
-                        <span class="flex-1 text-center cursor-pointer hover:bg-slate-200 rounded px-0.5 py-0.5 transition-colors select-none" onclick="sortUniqueRdpTable('gsTotal')" title="Sort by Total Subs ID">TOTAL ${subIcon('gsTotal')}</span>
-                        <span class="flex-1 text-center text-emerald-600 cursor-pointer hover:bg-emerald-50 rounded px-0.5 py-0.5 transition-colors select-none" onclick="sortUniqueRdpTable('gsActive')" title="Sort by Active">ACT ${subIcon('gsActive')}</span>
-                        <span class="flex-1 text-center text-rose-600 cursor-pointer hover:bg-rose-50 rounded px-0.5 py-0.5 transition-colors select-none" onclick="sortUniqueRdpTable('gsExpired')" title="Sort by Expired">EXP ${subIcon('gsExpired')}</span>
-                    </div>
-                </th>
                 <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('category')">Category ${getIcon('category')}</th>
                 <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('custCluster')">Customer Cluster ${getIcon('custCluster')}</th>
                 <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('activationDate')">Activation Date ${getIcon('activationDate')}</th>
@@ -1874,20 +1830,6 @@
             rawBody.innerHTML = G.uniqueRdpRows.map((item, idx) => `
                 <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-purple-50">
                     <td class="px-3 py-1.5 border-b border-slate-100 font-mono text-[11px] text-slate-800">${item.subNo}</td>
-                    <td class="px-3 py-1.5 border-b border-slate-100">
-                        <div class="flex items-center justify-between text-[11px] font-semibold bg-slate-100/50 rounded px-1 py-0.5 border border-slate-100">
-                            <span class="w-8 text-center text-slate-800">${item._cgTotal}</span>
-                            <span class="w-8 text-center text-emerald-600">${item._cgActive}</span>
-                            <span class="w-8 text-center text-rose-600">${item._cgExpired}</span>
-                        </div>
-                    </td>
-                    <td class="px-3 py-1.5 border-b border-slate-100">
-                        <div class="flex items-center justify-between text-[11px] font-semibold bg-slate-100/50 rounded px-1 py-0.5 border border-slate-100">
-                            <span class="w-8 text-center text-slate-800">${item._gsTotal}</span>
-                            <span class="w-8 text-center text-emerald-600">${item._gsActive}</span>
-                            <span class="w-8 text-center text-rose-600">${item._gsExpired}</span>
-                        </div>
-                    </td>
                     <td class="px-3 py-1.5 border-b border-slate-100"><span class="badge-tag bg-slate-100 text-slate-700">${item.category}</span></td>
                     <td class="px-3 py-1.5 border-b border-slate-100 text-[11px] text-slate-600">${item.custCluster || '—'}</td>
                     <td class="px-3 py-1.5 border-b border-slate-100 text-[11px] text-slate-600">${fmtDate(item.activationDate)}</td>
@@ -1907,4 +1849,3 @@
     </script>
 </body>
 </html>
-```
