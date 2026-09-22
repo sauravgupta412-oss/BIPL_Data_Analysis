@@ -452,16 +452,7 @@
             <!-- Raw Data Table -->
             <div class="flex-1 overflow-auto px-4 pb-3 pt-2">
                 <table class="w-full text-xs border-collapse">
-                    <thead class="bg-slate-100 sticky top-0">
-                        <tr>
-                            <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200">Subscription Number</th>
-                            <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200">Category</th>
-                            <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200">Customer Cluster</th>
-                            <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200">Activation Date</th>
-                            <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200">RDP Switch Date</th>
-                            <th class="text-right px-3 py-2 font-semibold text-slate-700 border-b border-slate-200">RDP Users</th>
-                        </tr>
-                    </thead>
+                    <thead class="bg-slate-100 sticky top-0" id="uniqueRdpRawThead"></thead>
                     <tbody id="uniqueRdpRawBody"></tbody>
                 </table>
             </div>
@@ -502,7 +493,12 @@
             listModalRows: [],
             listSortCol: null,
             listSortDir: 1,
-            listModalIdentifierLabel: ''
+            listModalIdentifierLabel: '',
+
+            // Unique RDP Modal Sorting State
+            uniqueRdpRows: [],
+            uniqueRdpSortCol: null,
+            uniqueRdpSortDir: 1
         };
 
         const CUTOFF_DATE = new Date('2026-09-01T00:00:00');
@@ -511,15 +507,15 @@
         Chart.defaults.color = '#475569';
         Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
 
-                document.getElementById('csvFileInput').addEventListener('change', handleFileUpload);
+        document.getElementById('csvFileInput').addEventListener('change', handleFileUpload);
         document.getElementById('globalSearchInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') performGlobalSearch();
         });
 
-                // ==========================================
-        // AUTO-LOAD CSVs FROM GITHUB RELEASE ASSETS
         // ==========================================
-                const CSV_SOURCES = [
+        // AUTO-LOAD CSVs FROM GZIP RELEASE / PAGE ASSETS
+        // ==========================================
+        const CSV_SOURCES = [
             {
                 name: 'data1.csv.gz',
                 urls: [
@@ -580,6 +576,7 @@
             }
             throw lastError || new Error(`Could not load ${source.name}`);
         }
+
         async function autoLoadCsvs() {
             const statusBox = document.getElementById('statusBox');
             const statusMsg = document.getElementById('statusMessage');
@@ -590,7 +587,7 @@
             statusBox.classList.add('bg-sky-50', 'text-sky-800');
             progressBarContainer.classList.remove('hidden');
             progressBar.style.width = '10%';
-            statusMsg.innerHTML = `<svg class="animate-spin h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12h4z"></path></svg> Auto-loading CSV data from GitHub Release...`;
+            statusMsg.innerHTML = `<svg class="animate-spin h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Auto-loading CSV data from GitHub Pages...`;
 
             G.subscriptionsMap.clear();
             G.allHeaders = [];
@@ -703,7 +700,7 @@
             statusBox.classList.add('bg-sky-50', 'text-sky-800');
             progressBarContainer.classList.remove('hidden');
             progressBar.style.width = '5%';
-            statusMsg.innerHTML = `<svg class="animate-spin h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 12h4z"></path></svg> Ingesting ${files.length} CSV File(s)...`;
+            statusMsg.innerHTML = `<svg class="animate-spin h-4 w-4 text-sky-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Ingesting ${files.length} CSV File(s)...`;
 
             let filesProcessed = 0;
             G.subscriptionsMap.clear();
@@ -1721,12 +1718,11 @@
         }
 
         // ==========================================
-        // UNIQUE RDP MODAL LOGIC
+        // UNIQUE RDP MODAL LOGIC (With Table Sorting)
         // ==========================================
         function openUniqueRdpModal() {
             if (!G.currentUniqueRdpMap || G.currentUniqueRdpMap.size === 0) return;
 
-            const fmtDate = (d) => d ? d.toLocaleDateString('en-GB') : '—';
             const items = Array.from(G.currentUniqueRdpMap.values());
 
             document.getElementById('uniqueRdpSubtitle').innerText = `${items.length.toLocaleString()} unique RDP target licenses`;
@@ -1771,9 +1767,67 @@
 
             summaryBody.innerHTML = summaryHtml;
 
-            // Render raw data table
+            // Store rows & reset sort state, then render sortable raw data table
+            G.uniqueRdpRows = items.slice();
+            G.uniqueRdpSortCol = null;
+            G.uniqueRdpSortDir = 1;
+            renderUniqueRdpRawTable();
+
+            document.getElementById('uniqueRdpModal').classList.add('active');
+        }
+
+        function sortUniqueRdpTable(col) {
+            if (G.uniqueRdpSortCol === col) {
+                G.uniqueRdpSortDir *= -1;
+            } else {
+                G.uniqueRdpSortCol = col;
+                G.uniqueRdpSortDir = 1;
+            }
+            renderUniqueRdpRawTable();
+        }
+
+        function renderUniqueRdpRawTable() {
+            const fmtDate = (d) => d ? d.toLocaleDateString('en-GB') : '—';
+
+            if (G.uniqueRdpSortCol) {
+                G.uniqueRdpRows.sort((a, b) => {
+                    let valA, valB;
+                    switch (G.uniqueRdpSortCol) {
+                        case 'subNo': valA = a.subNo; valB = b.subNo; break;
+                        case 'category': valA = a.category || ''; valB = b.category || ''; break;
+                        case 'custCluster': valA = a.custCluster || ''; valB = b.custCluster || ''; break;
+                        case 'activationDate': valA = a.activationDate ? a.activationDate.getTime() : 0; valB = b.activationDate ? b.activationDate.getTime() : 0; break;
+                        case 'rdpSwitchDate': valA = a.rdpSwitchDate ? a.rdpSwitchDate.getTime() : 0; valB = b.rdpSwitchDate ? b.rdpSwitchDate.getTime() : 0; break;
+                        case 'rdpCount': valA = a.rdpCount || 0; valB = b.rdpCount || 0; break;
+                        default: valA = ''; valB = '';
+                    }
+                    if (typeof valA === 'string') valA = valA.toLowerCase();
+                    if (typeof valB === 'string') valB = valB.toLowerCase();
+                    if (valA < valB) return -1 * G.uniqueRdpSortDir;
+                    if (valA > valB) return 1 * G.uniqueRdpSortDir;
+                    return 0;
+                });
+            }
+
+            const getIcon = (col) => {
+                if (G.uniqueRdpSortCol === col) {
+                    return `<span class="text-purple-600 font-bold ml-1">${G.uniqueRdpSortDir === 1 ? '&uarr;' : '&darr;'}</span>`;
+                }
+                return `<span class="text-slate-400 ml-1 opacity-50">&#8597;</span>`;
+            };
+
+            const thead = document.getElementById('uniqueRdpRawThead');
+            thead.innerHTML = `<tr>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('subNo')">Subscription Number ${getIcon('subNo')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('category')">Category ${getIcon('category')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('custCluster')">Customer Cluster ${getIcon('custCluster')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('activationDate')">Activation Date ${getIcon('activationDate')}</th>
+                <th class="text-left px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('rdpSwitchDate')">RDP Switch Date ${getIcon('rdpSwitchDate')}</th>
+                <th class="text-right px-3 py-2 font-semibold text-slate-700 border-b border-slate-200 cursor-pointer hover:bg-slate-200 transition-colors select-none" onclick="sortUniqueRdpTable('rdpCount')">RDP Users ${getIcon('rdpCount')}</th>
+            </tr>`;
+
             const rawBody = document.getElementById('uniqueRdpRawBody');
-            rawBody.innerHTML = items.map((item, idx) => `
+            rawBody.innerHTML = G.uniqueRdpRows.map((item, idx) => `
                 <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-purple-50">
                     <td class="px-3 py-1.5 border-b border-slate-100 font-mono text-[11px] text-slate-800">${item.subNo}</td>
                     <td class="px-3 py-1.5 border-b border-slate-100"><span class="badge-tag bg-slate-100 text-slate-700">${item.category}</span></td>
@@ -1783,8 +1837,6 @@
                     <td class="px-3 py-1.5 border-b border-slate-100 text-[11px] text-right font-semibold text-amber-600">${item.rdpCount.toLocaleString()}</td>
                 </tr>
             `).join('');
-
-            document.getElementById('uniqueRdpModal').classList.add('active');
         }
 
         function closeUniqueRdpModal() {
@@ -1797,4 +1849,3 @@
     </script>
 </body>
 </html>
-```
